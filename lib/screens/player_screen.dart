@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
-import 'package:chewie/chewie.dart';
+import 'package:chewie/chewie.dart' hide CastButton;
 import '../models/profile.dart';
 import '../models/media_item.dart';
 import '../services/storage_service.dart';
 import '../services/cast_service.dart';
 import '../widgets/cast_button.dart';
 import '../models/channel_item.dart';
-import '../models/media_item.dart';
 import '../services/match_service.dart';
 import 'media_details_screen.dart';
 
