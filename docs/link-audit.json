@@ -1,0 +1,590 @@
+{
+  "checkedAt": "2026-10-25T19:58:34.844Z",
+  "counts": {
+    "filme": {
+      "total": 17950,
+      "status": 200
+    },
+    "serie": {
+      "total": 8266,
+      "status": 200
+    },
+    "anime": {
+      "total": 2366,
+      "status": 200
+    },
+    "dorama": {
+      "total": 2683,
+      "status": 200
+    },
+    "desenho": {
+      "total": 929,
+      "status": 200
+    },
+    "novela": {
+      "total": 563,
+      "status": 200
+    }
+  },
+  "sampleSize": 22,
+  "summary": {
+    "external-player-pending-browser": 6,
+    "media-received": 16
+  },
+  "results": [
+    {
+      "kind": "serie",
+      "id": "321291",
+      "title": "Territórios - Sob o Domínio do Crime",
+      "detailsStatus": 200,
+      "seasons": 1,
+      "episodes": 6,
+      "playStatus": 200,
+      "options": 5,
+      "checks": [
+        {
+          "provider": "resolver2_episodes",
+          "ok": false,
+          "status": 403,
+          "type": "text/html; charset=UTF-8",
+          "reason": "http-403",
+          "bytes": 4576
+        },
+        {
+          "provider": "serie3",
+          "ok": false,
+          "reason": "external-frame-needs-browser"
+        },
+        {
+          "provider": "serie3",
+          "ok": false,
+          "reason": "external-frame-needs-browser"
+        },
+        {
+          "provider": "serie3",
+          "ok": false,
+          "reason": "external-frame-needs-browser"
+        }
+      ],
+      "outcome": "external-player-pending-browser"
+    },
+    {
+      "kind": "serie",
+      "id": "1973",
+      "title": "24 Horas",
+      "detailsStatus": 200,
+      "seasons": 9,
+      "episodes": 24,
+      "playStatus": 200,
+      "options": 6,
+      "checks": [
+        {
+          "provider": "resolver2_episodes",
+          "ok": false,
+          "status": 403,
+          "type": "text/html; charset=UTF-8",
+          "reason": "http-403",
+          "bytes": 4576
+        },
+        {
+          "provider": "resolver3_episodes",
+          "ok": true,
+          "status": 206,
+          "type": "video/mp4",
+          "reason": "media-bytes",
+          "bytes": 4096
+        }
+      ],
+      "outcome": "media-received"
+    },
+    {
+      "kind": "filme",
+      "id": "1058588",
+      "title": "O Hóspede Oculto",
+      "playStatus": 200,
+      "options": 4,
+      "checks": [
+        {
+          "provider": "movie2",
+          "ok": false,
+          "reason": "external-frame-needs-browser"
+        },
+        {
+          "provider": "movie2",
+          "ok": false,
+          "reason": "external-frame-needs-browser"
+        },
+        {
+          "provider": "movie2",
+          "ok": false,
+          "reason": "external-frame-needs-browser"
+        },
+        {
+          "provider": "movie2",
+          "ok": false,
+          "reason": "external-frame-needs-browser"
+        }
+      ],
+      "outcome": "external-player-pending-browser"
+    },
+    {
+      "kind": "filme",
+      "id": "1628116",
+      "title": "BTS: O Reencontro",
+      "playStatus": 200,
+      "options": 9,
+      "checks": [
+        {
+          "provider": "resolver3_mv",
+          "ok": true,
+          "status": 206,
+          "type": "video/mp4",
+          "reason": "media-bytes",
+          "bytes": 4096
+        }
+      ],
+      "outcome": "media-received"
+    },
+    {
+      "kind": "filme",
+      "id": "1773759",
+      "title": "Solteiramente Juntas",
+      "playStatus": 200,
+      "options": 1,
+      "checks": [
+        {
+          "provider": "resolver3_mv",
+          "ok": true,
+          "status": 206,
+          "type": "video/mp4",
+          "reason": "media-bytes",
+          "bytes": 4096
+        }
+      ],
+      "outcome": "media-received"
+    },
+    {
+      "kind": "filme",
+      "id": "1561726",
+      "title": "Masterplan",
+      "playStatus": 200,
+      "options": 5,
+      "checks": [
+        {
+          "provider": "resolver3_mv",
+          "ok": true,
+          "status": 206,
+          "type": "video/mp4",
+          "reason": "media-bytes",
+          "bytes": 4096
+        }
+      ],
+      "outcome": "media-received"
+    },
+    {
+      "kind": "filme",
+      "id": "1623256",
+      "title": "O Temporal",
+      "playStatus": 200,
+      "options": 4,
+      "checks": [
+        {
+          "provider": "movie2",
+          "ok": false,
+          "reason": "external-frame-needs-browser"
+        },
+        {
+          "provider": "movie2",
+          "ok": false,
+          "reason": "external-frame-needs-browser"
+        },
+        {
+          "provider": "movie2",
+          "ok": false,
+          "reason": "external-frame-needs-browser"
+        },
+        {
+          "provider": "movie2",
+          "ok": false,
+          "reason": "external-frame-needs-browser"
+        }
+      ],
+      "outcome": "external-player-pending-browser"
+    },
+    {
+      "kind": "filme",
+      "id": "1790935",
+      "title": "Instadocs: IA Rebelde",
+      "playStatus": 200,
+      "options": 9,
+      "checks": [
+        {
+          "provider": "resolver3_mv",
+          "ok": true,
+          "status": 206,
+          "type": "video/mp4",
+          "reason": "media-bytes",
+          "bytes": 4096
+        }
+      ],
+      "outcome": "media-received"
+    },
+    {
+      "kind": "serie",
+      "id": "275139",
+      "title": "Fingida",
+      "detailsStatus": 200,
+      "seasons": 1,
+      "episodes": 2,
+      "playStatus": 200,
+      "options": 3,
+      "checks": [
+        {
+          "provider": "serie3",
+          "ok": false,
+          "reason": "external-frame-needs-browser"
+        },
+        {
+          "provider": "serie3",
+          "ok": false,
+          "reason": "external-frame-needs-browser"
+        },
+        {
+          "provider": "serie3",
+          "ok": false,
+          "reason": "external-frame-needs-browser"
+        }
+      ],
+      "outcome": "external-player-pending-browser"
+    },
+    {
+      "kind": "serie",
+      "id": "335319",
+      "title": "O Novo Experimento de Aprisionamento de Stanford",
+      "detailsStatus": 200,
+      "seasons": 1,
+      "episodes": 6,
+      "playStatus": 200,
+      "options": 4,
+      "checks": [
+        {
+          "provider": "serie3",
+          "ok": false,
+          "reason": "external-frame-needs-browser"
+        },
+        {
+          "provider": "serie3",
+          "ok": false,
+          "reason": "external-frame-needs-browser"
+        },
+        {
+          "provider": "serie3",
+          "ok": false,
+          "reason": "external-frame-needs-browser"
+        },
+        {
+          "provider": "serie3",
+          "ok": false,
+          "reason": "external-frame-needs-browser"
+        }
+      ],
+      "outcome": "external-player-pending-browser"
+    },
+    {
+      "kind": "serie",
+      "id": "298550",
+      "title": "Amigos Sexo e Jogos",
+      "detailsStatus": 200,
+      "seasons": 1,
+      "episodes": 8,
+      "playStatus": 200,
+      "options": 5,
+      "checks": [
+        {
+          "provider": "resolver3_episodes",
+          "ok": true,
+          "status": 206,
+          "type": "video/mp4",
+          "reason": "media-bytes",
+          "bytes": 4096
+        }
+      ],
+      "outcome": "media-received"
+    },
+    {
+      "kind": "serie",
+      "id": "296466",
+      "title": "Marília Mendonça: Sentimento Louco",
+      "detailsStatus": 200,
+      "seasons": 1,
+      "episodes": 4,
+      "playStatus": 200,
+      "options": 6,
+      "checks": [
+        {
+          "provider": "resolver2_episodes",
+          "ok": false,
+          "status": 403,
+          "type": "text/plain; charset=utf-8",
+          "reason": "http-403",
+          "bytes": 27
+        },
+        {
+          "provider": "resolver3_episodes",
+          "ok": true,
+          "status": 206,
+          "type": "video/mp4",
+          "reason": "media-bytes",
+          "bytes": 4096
+        }
+      ],
+      "outcome": "media-received"
+    },
+    {
+      "kind": "serie",
+      "id": "286183",
+      "title": "Hollywood Arts",
+      "detailsStatus": 200,
+      "seasons": 1,
+      "episodes": 12,
+      "playStatus": 200,
+      "options": 5,
+      "checks": [
+        {
+          "provider": "resolver3_episodes",
+          "ok": true,
+          "status": 206,
+          "type": "video/mp4",
+          "reason": "media-bytes",
+          "bytes": 4096
+        }
+      ],
+      "outcome": "media-received"
+    },
+    {
+      "kind": "serie",
+      "id": "213562",
+      "title": "Crystal Lake",
+      "detailsStatus": 200,
+      "seasons": 1,
+      "episodes": 8,
+      "playStatus": 200,
+      "options": 10,
+      "checks": [
+        {
+          "provider": "resolver2_episodes",
+          "ok": false,
+          "status": 403,
+          "type": "text/plain; charset=utf-8",
+          "reason": "http-403",
+          "bytes": 27
+        },
+        {
+          "provider": "resolver3_episodes",
+          "ok": true,
+          "status": 206,
+          "type": "video/mp4",
+          "reason": "media-bytes",
+          "bytes": 4096
+        }
+      ],
+      "outcome": "media-received"
+    },
+    {
+      "kind": "anime",
+      "id": "306565",
+      "title": "DARK MACHINE THE ANIMATION",
+      "detailsStatus": 200,
+      "seasons": 1,
+      "episodes": 1,
+      "playStatus": 200,
+      "options": 1,
+      "checks": [
+        {
+          "provider": "resolver3_episodes",
+          "ok": true,
+          "status": 206,
+          "type": "video/mp4",
+          "reason": "media-bytes",
+          "bytes": 4096
+        }
+      ],
+      "outcome": "media-received"
+    },
+    {
+      "kind": "anime",
+      "id": "a52eb0ea-3ef9-5725-9b64-76aec3005d23",
+      "title": "Maou 2099",
+      "detailsStatus": 200,
+      "seasons": 1,
+      "episodes": 12,
+      "playStatus": 200,
+      "options": 1,
+      "checks": [
+        {
+          "provider": "animes3_ep",
+          "ok": true,
+          "status": 206,
+          "type": "video/mp4",
+          "reason": "media-bytes",
+          "bytes": 3184
+        }
+      ],
+      "outcome": "media-received"
+    },
+    {
+      "kind": "dorama",
+      "id": "332713",
+      "title": "Minami Uma Advogada Extraordinária",
+      "detailsStatus": 200,
+      "seasons": 1,
+      "episodes": 1,
+      "playStatus": 200,
+      "options": 6,
+      "checks": [
+        {
+          "provider": "doramas_resolver1",
+          "ok": true,
+          "status": 200,
+          "type": "video/mp4",
+          "reason": "media-bytes",
+          "bytes": 4558
+        }
+      ],
+      "outcome": "media-received"
+    },
+    {
+      "kind": "dorama",
+      "id": "303745",
+      "title": "Amor Disfarçado",
+      "detailsStatus": 200,
+      "seasons": 1,
+      "episodes": 2,
+      "playStatus": 200,
+      "options": 6,
+      "checks": [
+        {
+          "provider": "doramas_resolver1",
+          "ok": true,
+          "status": 200,
+          "type": "video/mp4",
+          "reason": "media-bytes",
+          "bytes": 8192
+        }
+      ],
+      "outcome": "media-received"
+    },
+    {
+      "kind": "desenho",
+      "id": "204084",
+      "title": "Dreamland",
+      "detailsStatus": 200,
+      "seasons": 1,
+      "episodes": 2,
+      "playStatus": 200,
+      "options": 4,
+      "checks": [
+        {
+          "provider": "serie3",
+          "ok": false,
+          "reason": "external-frame-needs-browser"
+        },
+        {
+          "provider": "serie3",
+          "ok": false,
+          "reason": "external-frame-needs-browser"
+        },
+        {
+          "provider": "serie3",
+          "ok": false,
+          "reason": "external-frame-needs-browser"
+        },
+        {
+          "provider": "serie3",
+          "ok": false,
+          "reason": "external-frame-needs-browser"
+        }
+      ],
+      "outcome": "external-player-pending-browser"
+    },
+    {
+      "kind": "desenho",
+      "id": "312359",
+      "title": "Dragon Ball Super: Beerus",
+      "detailsStatus": 200,
+      "seasons": 1,
+      "episodes": 3,
+      "playStatus": 200,
+      "options": 8,
+      "checks": [
+        {
+          "provider": "resolver2_episodes",
+          "ok": false,
+          "status": 403,
+          "type": "text/plain; charset=utf-8",
+          "reason": "http-403",
+          "bytes": 27
+        },
+        {
+          "provider": "resolver3_episodes",
+          "ok": true,
+          "status": 206,
+          "type": "video/mp4",
+          "reason": "media-bytes",
+          "bytes": 4096
+        }
+      ],
+      "outcome": "media-received"
+    },
+    {
+      "kind": "novela",
+      "id": "288458",
+      "title": "Ben-Hur: A Série",
+      "detailsStatus": 200,
+      "seasons": 1,
+      "episodes": 12,
+      "playStatus": 200,
+      "options": 6,
+      "checks": [
+        {
+          "provider": "resolver2_episodes",
+          "ok": false,
+          "status": 403,
+          "type": "text/plain; charset=utf-8",
+          "reason": "http-403",
+          "bytes": 27
+        },
+        {
+          "provider": "resolver3_episodes",
+          "ok": true,
+          "status": 206,
+          "type": "video/mp4",
+          "reason": "media-bytes",
+          "bytes": 4096
+        }
+      ],
+      "outcome": "media-received"
+    },
+    {
+      "kind": "novela",
+      "id": "312650",
+      "title": "Por Você",
+      "detailsStatus": 200,
+      "seasons": 1,
+      "episodes": 60,
+      "playStatus": 200,
+      "options": 2,
+      "checks": [
+        {
+          "provider": "novelas_play",
+          "ok": true,
+          "status": 206,
+          "type": "video/mp2t",
+          "reason": "media-bytes",
+          "bytes": 4096
+        }
+      ],
+      "outcome": "media-received"
+    }
+  ]
+}

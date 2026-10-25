@@ -330,108 +330,13 @@ function normalize(payload) {
     .filter(([key]) => !['status', 'message', 'error', 'categories'].includes(key))
     .map(([id, value]) => typeof value === 'object' && value ? ({ id, ...value }) : ({ id, title: value }));
 }
+// Rebuild route state when browser navigation changes the watch URL.
+window.addEventListener('popstate', () => window.location.reload());
+window.addEventListener('pagehide', () => {
+  document.querySelectorAll('video').forEach(video => video.pause());
+});
+
 async function requestJson(url, options = {}) {
-  // Se for autenticação ou perfil (/api/auth)
-  if (url.startsWith('/api/auth')) {
-    const localUserRaw = localStorage.getItem('deepflix_local_user');
-    const localUser = localUserRaw ? JSON.parse(localUserRaw) : null;
-
-    if (url.includes('/login') || url.includes('/register')) {
-      const body = typeof options.body === 'string' ? JSON.parse(options.body) : (options.body || {});
-      const newUser = {
-        id: 'usr_' + Date.now(),
-        name: body.name || body.username || 'Usuário DEEPFLIX',
-        username: body.username || 'usuario',
-      };
-      localStorage.setItem('deepflix_local_user', JSON.stringify(newUser));
-      return { ok: true, user: newUser };
-    }
-
-    if (url.includes('/logout')) {
-      localStorage.removeItem('deepflix_local_user');
-      return { ok: true };
-    }
-
-    // /api/auth/me
-    return { ok: true, user: localUser };
-  }
-
-  // Se for favoritos ou histórico (/api/history, /api/favorites)
-  if (url.startsWith('/api/history')) {
-    return { results: loadLocalHistory() };
-  }
-  if (url.startsWith('/api/favorites')) {
-    return { results: loadLocalFavorites() };
-  }
-
-  // Se for reprodução de vídeo ou canal (/api/play)
-  if (url.startsWith('/api/play')) {
-    const parsedUrl = new URL(url, window.location.origin);
-    const kind = parsedUrl.searchParams.get('kind') || 'filme';
-    const id = parsedUrl.searchParams.get('id') || '';
-    const season = parseInt(parsedUrl.searchParams.get('season') || '1', 10);
-    const episode = parseInt(parsedUrl.searchParams.get('episode') || '1', 10);
-    return window.resolvePlayClient ? await window.resolvePlayClient(kind, id, season, episode) : { options: [] };
-  }
-
-  // Se for metadados detalhados de filme/série (/api/movie ou /api/series)
-  if (url.startsWith('/api/movie/') || url.startsWith('/api/series/')) {
-    return {
-      title: 'Reprodução Direta',
-      overview: 'Carregando vídeo direto da fonte.',
-      seasons: [{ season_number: 1, name: 'Temporada 1' }],
-      episodes: [{ episode_number: 1, name: 'Episódio 1' }],
-    };
-  }
-
-  // Se for busca ou lista de catálogo, responde client-side dos Gists
-  if (url.startsWith('/api/lista')) {
-    const parsedUrl = new URL(url, window.location.origin);
-    const cat = parsedUrl.searchParams.get('categoria') || parsedUrl.searchParams.get('category') || 'filme';
-    const query = (parsedUrl.searchParams.get('q') || '').toLowerCase().trim();
-    const platform = (parsedUrl.searchParams.get('platform') || '').toLowerCase().trim();
-    const page = parseInt(parsedUrl.searchParams.get('page') || '1', 10);
-    const pageSize = 50;
-
-    let items = [];
-
-    // Se a requisição veio de uma categoria de streaming (ex: Netflix, HBO Max, etc.)
-    if (platform && window.fetchPlatformItems) {
-      items = await window.fetchPlatformItems(platform, ['serie', 'anime', 'dorama'].includes(cat) ? 'serie' : 'filme');
-    } else if (cat === 'all' || cat === 'pesquisa') {
-      const allCats = ['filme', 'serie', 'anime', 'dorama', 'desenho', 'novela', 'canais'];
-      const results = await Promise.all(allCats.map(c => window.fetchGistDirect ? window.fetchGistDirect(c) : []));
-      items = results.flat();
-    } else {
-      items = window.fetchGistDirect ? await window.fetchGistDirect(cat) : [];
-    }
-
-    if (query) {
-      const normQ = query.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      items = items.filter(it => {
-        const rawT = (it.title || it.name || '').toLowerCase();
-        const normT = rawT.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-        return normT.includes(normQ) || rawT.includes(query);
-      });
-    }
-
-    // Filtra itens com nomes de controle ou próxima página
-    items = items.filter(it => {
-      const t = titleOf(it);
-      return t && !/PR[OÓ]XIMA\s*P[AÁ]GINA|P[AÁ]GINA\s*\d+|CANAIS\s*\+18|ADULTO/i.test(t);
-    });
-
-    const total = items.length;
-    const startIndex = (page - 1) * pageSize;
-    const pagedItems = items.slice(startIndex, startIndex + pageSize);
-
-    return {
-      items: pagedItems,
-      total,
-      hasMore: startIndex + pageSize < total,
-    };
-  }
-
   let response;
   try {
     const headers = { Accept: 'application/json', ...(options.headers || {}) };
@@ -2264,43 +2169,14 @@ async function loadAndPlayTarget({ kind, id, season = 1, episode = 1, target = '
 function openMediaPlayer(item, kind, season = 1, episode = 1) {
   const id = idOf(item);
   if (!id) return showToast('Este item não tem um identificador de reprodução.');
-  const film = kind === 'filme';
-  const normSeason = film ? 1 : Math.max(1, Number(season) || 1);
-  const normEpisode = film ? 1 : Math.max(1, Number(episode) || 1);
-  state.playback = { item, kind, season: film ? 0 : normSeason, episode: film ? 0 : normEpisode };
-  renderPlayerEpisodeNav();
-  $('#player-title').textContent = titleOf(item);
-  $('#detail-dialog').close();
-  if (!$('#player-dialog').open) $('#player-dialog').showModal();
-  loadAndPlayTarget({
-    kind,
-    id,
-    season: normSeason,
-    episode: normEpisode,
-    target: 'modal',
-    titleText: `Player de ${titleOf(item)}`,
-    itemMeta: item,
-  });
+  const suffix = kind === 'filme' ? '' : `/${Math.max(1, Number(season) || 1)}/${Math.max(1, Number(episode) || 1)}`;
+  window.location.assign(`/assistir/${encodeURIComponent(kind)}/${encodeURIComponent(id)}${suffix}`);
 }
-
 function openChannelPlayer(item) {
   const id = idOf(item);
   if (!id) return showToast('Este canal não tem um identificador válido.');
-  state.playback = { item, kind: 'canais', season: 0, episode: 0 };
-  $('#player-title').textContent = titleOf(item);
-  $('#detail-dialog')?.close();
-  if (!$('#player-dialog')?.open) $('#player-dialog')?.showModal();
-  loadAndPlayTarget({
-    kind: 'canais',
-    id,
-    season: 1,
-    episode: 1,
-    target: 'modal',
-    titleText: `Canal ${titleOf(item)}`,
-    itemMeta: item,
-  });
+  window.location.assign(`/assistir/canais/${encodeURIComponent(id)}`);
 }
-
 function renderPlayerEpisodeNav() {
   const playback = state.playback;
   const visible = playback && EPISODIC_KINDS.has(playback.kind);

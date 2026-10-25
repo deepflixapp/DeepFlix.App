@@ -1,0 +1,7 @@
+# Copy to .dev.vars.preview for LOCAL testing. Use wrangler secret put for remote environments.
+# Generate a unique random value of at least 32 characters for EACH environment.
+PROXY_SECRET=
+TMDB_READ_TOKEN=
+BRAZUCA_RESOLVER_TOKEN=
+# Optional: override the provider's public canonical origin after a domain change.
+# OVERFLIX_ORIGIN=https://www.overflix.press
