@@ -24,11 +24,27 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
 
   Future<void> _loadProfiles() async {
     setState(() => _loading = true);
-    final profiles = await StorageService.getProfiles();
-    setState(() {
-      _profiles = profiles;
-      _loading = false;
-    });
+    try {
+      final profiles = await StorageService.getProfiles();
+      if (!mounted) return;
+      setState(() {
+        _profiles = profiles;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _profiles = [
+          Profile(
+            id: 'default',
+            name: 'Principal',
+            avatar: '🎬',
+            createdAt: DateTime.now(),
+          )
+        ];
+        _loading = false;
+      });
+    }
   }
 
   void _selectProfile(Profile profile) async {

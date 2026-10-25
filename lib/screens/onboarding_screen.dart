@@ -46,12 +46,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   ];
 
   Future<void> _finishOnboarding() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('deepflix_tutorial_seen', true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('deepflix_tutorial_seen', true);
+    } catch (_) {}
 
     if (!mounted) return;
-    Navigator.of(context).pushReplacement(
+    Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const ProfileSelectionScreen()),
+      (route) => false,
     );
   }
 

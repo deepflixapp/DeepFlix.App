@@ -13,8 +13,12 @@ class DeepflixApp extends StatelessWidget {
   const DeepflixApp({super.key});
 
   Future<bool> _hasSeenTutorial() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool('deepflix_tutorial_seen') ?? false;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool('deepflix_tutorial_seen') ?? false;
+    } catch (_) {
+      return false;
+    }
   }
 
   @override
@@ -42,15 +46,15 @@ class DeepflixApp extends StatelessWidget {
         home: FutureBuilder<bool>(
           future: _hasSeenTutorial(),
           builder: (context, snapshot) {
-            if (!snapshot.hasData) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
               return const Scaffold(
                 backgroundColor: Color(0xFF0E1118),
                 body: Center(
-                  child: CircularProgressIndicator(color: Color(0xFF00E5FF)),
+                  child: CircularProgressIndicator(color: Color(0xFF9D4EDD)),
                 ),
               );
             }
-            final seenTutorial = snapshot.data!;
+            final seenTutorial = snapshot.data ?? false;
             return seenTutorial ? const ProfileSelectionScreen() : const OnboardingScreen();
           },
         ),

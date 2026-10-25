@@ -4,9 +4,10 @@
     android:viewportWidth="320"
     android:viewportHeight="180">
     <path
-        android:fillColor="#141414"
+        android:fillColor="#0E1118"
         android:pathData="M0,0h320v180h-320z"/>
+    <!-- Letra D roxa no centro do banner Leanback -->
     <path
-        android:fillColor="#E50914"
-        android:pathData="M140,70h40v40h-40z"/>
+        android:fillColor="#9D4EDD"
+        android:pathData="M138,54 L162,54 C175,54 184,63 184,84 C184,105 175,114 162,114 L138,114 Z M150,66 L150,102 L161,102 C168,102 172,96 172,84 C172,72 168,66 161,66 Z"/>
 </vector>
