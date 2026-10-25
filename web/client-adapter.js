@@ -11,7 +11,7 @@ const GIST_URLS = {
 
 const _clientCache = new Map();
 
-async function fetchGistDirect(category) {
+window.fetchGistDirect = async function(category) {
   if (_clientCache.has(category)) return _clientCache.get(category);
   const url = GIST_URLS[category];
   if (!url) return [];
@@ -47,8 +47,16 @@ async function fetchGistDirect(category) {
       }
     });
 
-async function resolvePlayClient(kind, id, season = 1, episode = 1) {
-  const items = await fetchGistDirect(kind);
+    _clientCache.set(category, items);
+    return items;
+  } catch (err) {
+    console.error('Erro ao ler gist client-side:', err);
+    return [];
+  }
+};
+
+window.resolvePlayClient = async function(kind, id, season = 1, episode = 1) {
+  const items = await window.fetchGistDirect(kind);
   const found = items.find(it => it.id === id) || items[0];
 
   if (!found || !found.streamUrl) {
@@ -69,4 +77,4 @@ async function resolvePlayClient(kind, id, season = 1, episode = 1) {
       }
     ]
   };
-}
+};

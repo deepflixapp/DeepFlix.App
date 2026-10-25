@@ -325,7 +325,7 @@ async function requestJson(url, options = {}) {
     const id = parsedUrl.searchParams.get('id') || '';
     const season = parseInt(parsedUrl.searchParams.get('season') || '1', 10);
     const episode = parseInt(parsedUrl.searchParams.get('episode') || '1', 10);
-    return await resolvePlayClient(kind, id, season, episode);
+    return window.resolvePlayClient ? await window.resolvePlayClient(kind, id, season, episode) : { options: [] };
   }
 
   // Se for metadados detalhados de filme/série (/api/movie ou /api/series)
@@ -349,10 +349,10 @@ async function requestJson(url, options = {}) {
     let items = [];
     if (cat === 'all') {
       const allCats = ['filme', 'serie', 'anime', 'dorama', 'desenho', 'novela', 'canais'];
-      const results = await Promise.all(allCats.map(c => fetchGistDirect(c)));
+      const results = await Promise.all(allCats.map(c => window.fetchGistDirect ? window.fetchGistDirect(c) : []));
       items = results.flat();
     } else {
-      items = await fetchGistDirect(cat);
+      items = window.fetchGistDirect ? await window.fetchGistDirect(cat) : [];
     }
 
     if (query) {
