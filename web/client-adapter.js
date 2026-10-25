@@ -168,7 +168,7 @@ async function parseChannelsGistXml(xmlText = '') {
 
   // Adiciona canais abertos e Pluto TV oficiais garantidos e testados
   try {
-    const plutoRes = await fetch('https://api.pluto.tv/v2/channels.json?sid=44319783-8c70-11ef-a9be-cc7de27ba2f5&deviceId=44319783-8c70-4536-a9be-cc7de27ba2f5');
+    const plutoRes = await fetch('/api/pluto/channels');
     if (plutoRes.ok) {
       const plutoList = await plutoRes.json();
       for (const ch of plutoList) {
@@ -356,7 +356,7 @@ window.resolvePlayClient = async function(kind, id, season = 1, episode = 1) {
         };
         for (const [k, v] of Object.entries(params)) bootUrl.searchParams.set(k, v);
 
-        const bootRes = await fetch(bootUrl.toString());
+        const bootRes = await fetch(`/api/pluto/boot?${params.toString()}`);
         if (bootRes.ok) {
           const bootData = await bootRes.json();
           const jwt = bootData.sessionToken;
