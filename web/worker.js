@@ -64,20 +64,33 @@ export default {
           }
         });
 
-        // Se for manifesto m3u8, reescreve links relativos para passar pelo proxy
+        // Se for manifesto m3u8, reescreve links para passar pelo proxy
         const contentType = upstream.headers.get('content-type') || '';
         if (contentType.includes('mpegurl') || targetStreamUrl.includes('.m3u8')) {
           let manifestText = await upstream.text();
           const baseUrl = new URL(targetStreamUrl);
           
           manifestText = manifestText.split('\n').map(line => {
-            const trimmed = line.trim();
-            if (!trimmed || trimmed.startsWith('#')) return line;
+            let processedLine = line;
+            // Reescreve atributos URI="..." (ex: legendas, audio demuxed, chaves AES-128 .key)
+            if (processedLine.includes('URI="')) {
+              processedLine = processedLine.replace(/URI="([^"]+)"/g, (match, relUri) => {
+                try {
+                  const abs = new URL(relUri, baseUrl).href;
+                  return `URI="/api/pluto/stream?url=${encodeURIComponent(abs)}"`;
+                } catch {
+                  return match;
+                }
+              });
+            }
+
+            const trimmed = processedLine.trim();
+            if (!trimmed || trimmed.startsWith('#')) return processedLine;
             try {
               const absoluteUri = new URL(trimmed, baseUrl).href;
               return `/api/pluto/stream?url=${encodeURIComponent(absoluteUri)}`;
             } catch {
-              return line;
+              return processedLine;
             }
           }).join('\n');
 
@@ -91,7 +104,7 @@ export default {
           });
         }
 
-        // Se for segmento de vídeo .ts ou outro recurso binário
+        // Se for segmento de vídeo .ts, chave .key ou outro recurso binário
         return new Response(upstream.body, {
           status: upstream.status,
           headers: {
