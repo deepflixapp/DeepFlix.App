@@ -331,6 +331,39 @@ function normalize(payload) {
     .map(([id, value]) => typeof value === 'object' && value ? ({ id, ...value }) : ({ id, title: value }));
 }
 async function requestJson(url, options = {}) {
+  // Se for autenticação ou perfil (/api/auth)
+  if (url.startsWith('/api/auth')) {
+    const localUserRaw = localStorage.getItem('deepflix_local_user');
+    const localUser = localUserRaw ? JSON.parse(localUserRaw) : null;
+
+    if (url.includes('/login') || url.includes('/register')) {
+      const body = typeof options.body === 'string' ? JSON.parse(options.body) : (options.body || {});
+      const newUser = {
+        id: 'usr_' + Date.now(),
+        name: body.name || body.username || 'Usuário DEEPFLIX',
+        username: body.username || 'usuario',
+      };
+      localStorage.setItem('deepflix_local_user', JSON.stringify(newUser));
+      return { ok: true, user: newUser };
+    }
+
+    if (url.includes('/logout')) {
+      localStorage.removeItem('deepflix_local_user');
+      return { ok: true };
+    }
+
+    // /api/auth/me
+    return { ok: true, user: localUser };
+  }
+
+  // Se for favoritos ou histórico (/api/history, /api/favorites)
+  if (url.startsWith('/api/history')) {
+    return { results: loadLocalHistory() };
+  }
+  if (url.startsWith('/api/favorites')) {
+    return { results: loadLocalFavorites() };
+  }
+
   // Se for reprodução de vídeo ou canal (/api/play)
   if (url.startsWith('/api/play')) {
     const parsedUrl = new URL(url, window.location.origin);
