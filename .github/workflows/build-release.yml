@@ -29,10 +29,8 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Scaffold Native Project
-        run: |
-          flutter create . --project-name deepflix_app --org com.deepflix --platforms=android
-          flutter pub get
+      - name: Install Project Dependencies
+        run: flutter pub get
 
       - name: Build Universal Release APK
         run: flutter build apk --release
