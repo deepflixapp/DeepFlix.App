@@ -318,9 +318,24 @@ function normalize(payload) {
     .map(([id, value]) => typeof value === 'object' && value ? ({ id, ...value }) : ({ id, title: value }));
 }
 async function requestJson(url, options = {}) {
-  // Se for rota de autenticação/histórico remoto e não houver servidor, opera com dados locais
-  if (url.startsWith('/api/auth/') || url.startsWith('/api/history') || url.startsWith('/api/favorites')) {
-    return { user: null, results: [] };
+  // Se for reprodução de vídeo ou canal (/api/play)
+  if (url.startsWith('/api/play')) {
+    const parsedUrl = new URL(url, window.location.origin);
+    const kind = parsedUrl.searchParams.get('kind') || 'filme';
+    const id = parsedUrl.searchParams.get('id') || '';
+    const season = parseInt(parsedUrl.searchParams.get('season') || '1', 10);
+    const episode = parseInt(parsedUrl.searchParams.get('episode') || '1', 10);
+    return await resolvePlayClient(kind, id, season, episode);
+  }
+
+  // Se for metadados detalhados de filme/série (/api/movie ou /api/series)
+  if (url.startsWith('/api/movie/') || url.startsWith('/api/series/')) {
+    return {
+      title: 'Reprodução Direta',
+      overview: 'Carregando vídeo direto da fonte.',
+      seasons: [{ season_number: 1, name: 'Temporada 1' }],
+      episodes: [{ episode_number: 1, name: 'Episódio 1' }],
+    };
   }
 
   // Se for busca ou lista de catálogo, responde client-side dos Gists

@@ -47,10 +47,26 @@ async function fetchGistDirect(category) {
       }
     });
 
-    _clientCache.set(category, items);
-    return items;
-  } catch (err) {
-    console.error('Erro ao ler gist client-side:', err);
-    return [];
+async function resolvePlayClient(kind, id, season = 1, episode = 1) {
+  const items = await fetchGistDirect(kind);
+  const found = items.find(it => it.id === id) || items[0];
+
+  if (!found || !found.streamUrl) {
+    return { options: [] };
   }
+
+  return {
+    title: found.title,
+    category: found.category,
+    poster: found.poster_path,
+    options: [
+      {
+        server: 'Principal',
+        label: 'Principal (Direto)',
+        url: found.streamUrl,
+        type: found.streamUrl.includes('.m3u8') ? 'hls' : 'mp4',
+        audio: 'Original',
+      }
+    ]
+  };
 }
