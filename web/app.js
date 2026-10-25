@@ -3264,6 +3264,21 @@ $('#player-dialog')?.addEventListener('click', event => {
 });
 for (let year = new Date().getFullYear(); year >= 1950; year--) $('#year-filter')?.insertAdjacentHTML('beforeend', `<option value="${year}">${year}</option>`);
 
+window.applyKindRoute = function(targetKind) {
+  state.kind = targetKind;
+  state.page = 1;
+  state.searchItems = null;
+  state.query = '';
+  if ($('#search-input')) $('#search-input').value = '';
+  if ($('#global-search-input')) $('#global-search-input').value = '';
+  document.querySelectorAll('[data-route]').forEach(link => {
+    link.classList.toggle('active', link.dataset.route === targetKind);
+  });
+  render();
+  fetchPage(targetKind);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
 // Alternador dinâmico de estilo do logotipo (Bicolor padrão vs Neon)
 window.setBrandLogoVariant = function(variant) {
   const file = variant === 'neon' ? '/logo-neon.svg' : '/logo.svg';
