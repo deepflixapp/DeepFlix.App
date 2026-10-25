@@ -356,7 +356,7 @@ window.resolvePlayClient = async function(kind, id, season = 1, episode = 1) {
         };
         for (const [k, v] of Object.entries(params)) bootUrl.searchParams.set(k, v);
 
-        const bootRes = await fetch(`/api/pluto/boot?${params.toString()}`);
+        const bootRes = await fetch(`/api/pluto/boot?${bootUrl.searchParams.toString()}`);
         if (bootRes.ok) {
           const bootData = await bootRes.json();
           const jwt = bootData.sessionToken;
