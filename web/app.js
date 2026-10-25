@@ -318,6 +318,43 @@ function normalize(payload) {
     .map(([id, value]) => typeof value === 'object' && value ? ({ id, ...value }) : ({ id, title: value }));
 }
 async function requestJson(url, options = {}) {
+  // Se for rota de autenticação/histórico remoto e não houver servidor, opera com dados locais
+  if (url.startsWith('/api/auth/') || url.startsWith('/api/history') || url.startsWith('/api/favorites')) {
+    return { user: null, results: [] };
+  }
+
+  // Se for busca ou lista de catálogo, responde client-side dos Gists
+  if (url.startsWith('/api/lista')) {
+    const parsedUrl = new URL(url, window.location.origin);
+    const cat = parsedUrl.searchParams.get('categoria') || 'filme';
+    const query = (parsedUrl.searchParams.get('q') || '').toLowerCase();
+    const page = parseInt(parsedUrl.searchParams.get('page') || '1', 10);
+    const pageSize = 50;
+
+    let items = [];
+    if (cat === 'all') {
+      const allCats = ['filme', 'serie', 'anime', 'dorama', 'desenho', 'novela', 'canais'];
+      const results = await Promise.all(allCats.map(c => fetchGistDirect(c)));
+      items = results.flat();
+    } else {
+      items = await fetchGistDirect(cat);
+    }
+
+    if (query) {
+      items = items.filter(it => it.title && it.title.toLowerCase().includes(query));
+    }
+
+    const total = items.length;
+    const startIndex = (page - 1) * pageSize;
+    const pagedItems = items.slice(startIndex, startIndex + pageSize);
+
+    return {
+      items: pagedItems,
+      total,
+      hasMore: startIndex + pageSize < total,
+    };
+  }
+
   let response;
   try {
     const headers = { Accept: 'application/json', ...(options.headers || {}) };
