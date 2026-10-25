@@ -31,7 +31,9 @@ jobs:
           cache: true
 
       - name: Install Project Dependencies
-        run: flutter pub get
+        run: |
+          flutter create . --org com.deepflix --platforms=android,windows
+          flutter pub get
 
       - name: Build Universal Release APK
         run: flutter build apk --release
@@ -60,7 +62,9 @@ jobs:
         run: flutter config --enable-windows-desktop
 
       - name: Install Project Dependencies
-        run: flutter pub get
+        run: |
+          flutter create . --org com.deepflix --platforms=android,windows
+          flutter pub get
 
       - name: Build Windows Executable
         run: flutter build windows --release
