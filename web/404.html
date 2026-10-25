@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#08070b" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="DEEPFLIX" />
+    <meta name="description" content="Encontre filmes, séries, animes, doramas, desenhos, novelas e canais ao vivo por gênero, ano e plataforma." />
+    <title>DEEPFLIX — filmes, séries, animes, doramas, novelas e canais</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/icon.png" />
+    <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+    <link rel="stylesheet" href="/styles.css?v=20261023-v1" />
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js" defer></script>
+    <script src="/client-adapter.js" defer></script>
+    <script src="/app.js?v=20261023-v1" defer></script>
+    <script src="/tv.js?v=20261023-v1" defer></script>
+  </head>
+  <body>
+    <div class="app-shell" id="app-shell">
+      <div class="mobile-drawer-backdrop" id="mobile-drawer-backdrop" hidden></div>
+      <aside class="sidebar" id="main-sidebar" aria-label="Menu principal">
+        <div class="sidebar-top-row">
+          <a class="brand" href="/" aria-label="DEEPFLIX, início"><img class="brand-logo-img" id="main-brand-logo" src="/logo.svg" alt="DEEPFLIX" width="160" height="32" /></a>
+          <button class="close-button mobile-drawer-close" id="mobile-drawer-close" type="button" aria-label="Fechar menu">×</button>
+        </div>
+
+        <nav class="side-nav">
+          <p class="nav-label">CATÁLOGO</p>
+          <a class="nav-link" href="/" data-route="all"><span class="nav-icon">⌕</span><span class="nav-text">Buscar</span></a>
+          <a class="nav-link" href="/filmes" data-route="filme"><span class="nav-icon">▣</span><span class="nav-text">Filmes</span></a>
+          <a class="nav-link" href="/series" data-route="serie"><span class="nav-icon">▤</span><span class="nav-text">Séries</span></a>
+          <a class="nav-link" href="/animes" data-route="anime"><span class="nav-icon">✦</span><span class="nav-text">Animes</span></a>
+          <a class="nav-link" href="/doramas" data-route="dorama"><span class="nav-icon">❀</span><span class="nav-text">Doramas</span></a>
+          <a class="nav-link" href="/desenhos" data-route="desenho"><span class="nav-icon">◈</span><span class="nav-text">Desenhos</span></a>
+          <a class="nav-link" href="/novelas" data-route="novela"><span class="nav-icon">❖</span><span class="nav-text">Novelas</span></a>
+          <a class="nav-link" href="/documentarios" data-route="documentarios"><span class="nav-icon">◎</span><span class="nav-text">Documentários</span></a>
+          <a class="nav-link" href="/programas" data-route="programas"><span class="nav-icon">◫</span><span class="nav-text">Programas de TV</span></a>
+          <a class="nav-link" href="/shows" data-route="shows"><span class="nav-icon">♪</span><span class="nav-text">Shows e Música</span></a>
+          <a class="nav-link" href="/canais" data-route="canais"><span class="nav-icon">◉</span><span class="nav-text">Canais</span></a>
+          <a class="nav-link" href="/mapa" data-route="mapa"><span class="nav-icon">≡</span><span class="nav-text">Mapa do Site</span></a>
+
+          <p class="nav-label nav-label-extra">SUA CONTA</p>
+          <a class="nav-link" href="/favoritos" data-route="favoritos"><span class="nav-icon">★</span><span class="nav-text">Minha Lista</span><span class="nav-count" id="sidebar-favorites-count" hidden>0</span></a>
+          <a class="nav-link" href="/historico" data-route="historico"><span class="nav-icon">◷</span><span class="nav-text">Histórico</span><span class="nav-count" id="sidebar-history-count" hidden>0</span></a>
+          <button class="nav-link nav-account-btn" id="sidebar-account-btn" type="button"><span class="nav-icon">●</span><span class="nav-text" id="sidebar-account-label">Entrar / Criar conta</span></button>
+        </nav>
+
+        <div class="sidebar-divider"></div>
+        <div class="sidebar-note"><span class="status-dot"></span><span id="sidebar-status-text">Seu catálogo, em um só lugar</span></div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button class="mobile-menu-toggle" id="mobile-menu-toggle" type="button" aria-label="Alternar menu lateral" aria-expanded="false" title="Recolher / abrir menu lateral">☰</button>
+            <a class="brand mobile-top-brand" href="/" aria-label="DEEPFLIX, início"><img class="brand-logo-img" src="/logo.svg" alt="DEEPFLIX" width="140" height="28" /></a>
+            <div class="breadcrumb"><span>DEEPFLIX</span><span class="crumb-separator">/</span><span id="breadcrumb-current">Buscar</span></div>
+          </div>
+          <div class="topbar-actions">
+            <form class="search-box search-box-top" id="global-search-form" action="/" method="get" role="search">
+              <span class="search-icon" aria-hidden="true">⌕</span>
+              <select class="search-mode-select" id="global-search-mode" aria-label="Tipo de pesquisa">
+                <option value="title">Título</option>
+                <option value="actor">Ator</option>
+              </select>
+              <input id="global-search-input" type="search" name="q" placeholder="Buscar filmes, séries, atores…" aria-label="Buscar títulos ou atores" autocomplete="off" />
+              <button class="search-submit" type="submit">Buscar</button>
+              <div class="search-suggest-dropdown" id="global-search-suggest" hidden></div>
+            </form>
+            <div class="user-menu" id="topbar-user-area">
+              <button class="auth-trigger-btn" id="topbar-auth-btn" type="button">Entrar</button>
+            </div>
+          </div>
+        </header>
+
+        <nav class="platform-nav" aria-label="Plataformas de streaming">
+          <a href="/plataforma/netflix" data-platform="netflix">Netflix</a>
+          <a href="/plataforma/hbo-max" data-platform="hbo-max">HBO Max</a>
+          <a href="/plataforma/prime-video" data-platform="prime-video">Prime Video</a>
+          <a href="/plataforma/disney-plus" data-platform="disney-plus">Disney+</a>
+          <a href="/plataforma/apple-tv-plus" data-platform="apple-tv-plus">Apple TV+</a>
+          <a href="/plataforma/paramount-plus" data-platform="paramount-plus">Paramount+</a>
+          <a href="/plataforma/globoplay" data-platform="globoplay">Globoplay</a>
+          <a href="/plataforma/crunchyroll" data-platform="crunchyroll">Crunchyroll</a>
+        </nav>
+
+        <div class="page-content">
+          <section class="page-intro">
+            <div>
+              <p class="eyebrow" id="page-eyebrow" hidden>BUSCA DE TÍTULOS</p>
+              <h1 id="page-title">Buscar</h1>
+              <p class="intro-copy" id="intro-copy" hidden>Pesquise títulos ou explore o catálogo usando os filtros.</p>
+            </div>
+          </section>
+
+          <section class="continue-watching-section" id="continue-watching-section" aria-labelledby="continue-watching-title" hidden>
+            <div class="continue-watching-header">
+              <div>
+                <h2 id="continue-watching-title">Continuar assistindo</h2>
+              </div>
+              <a class="continue-watching-link" href="/historico">Ver histórico completo →</a>
+            </div>
+            <div class="continue-watching-row" id="continue-watching-row"></div>
+          </section>
+
+          <section class="catalog-section" id="catalogo" aria-labelledby="catalog-title">
+            <div class="catalog-heading" hidden>
+              <div>
+                <h2 id="catalog-title" hidden>Catálogo</h2>
+                <p id="results-caption" hidden>Confirme uma busca para carregar o catálogo</p>
+              </div>
+            </div>
+
+            <nav class="channel-categories-bar genre-menu" id="genre-menu" aria-label="Gêneros do catálogo" hidden></nav>
+            <div class="category-sort-bar" id="category-sort-bar" hidden>
+              <label class="category-sort-field" id="category-genre-field">Gênero
+                <select id="category-genre-select" aria-label="Filtrar títulos por gênero">
+                  <option value="">Todos os gêneros</option>
+                </select>
+              </label>
+              <label class="category-sort-field">Ordenar por
+                <select id="category-sort-select" aria-label="Ordenar títulos da categoria">
+                  <option value="recent">Mais recentes</option>
+                  <option value="popular">Popularidade</option>
+                  <option value="rating">Melhor avaliação</option>
+                  <option value="az">Ordem Alfabética (A–Z)</option>
+                </select>
+              </label>
+              <label class="category-sort-field">Ano
+                <select id="category-year-select" aria-label="Filtrar categoria por ano">
+                  <option value="">Todos os anos</option>
+                </select>
+              </label>
+              <div class="catalog-heading-actions">
+                <a class="platform-back-btn" id="platform-back-link" href="#" hidden>← Voltar para <span id="platform-back-name">Plataforma</span></a>
+                <button class="clear-filters" id="clear-filters" type="button" hidden>Limpar filtros</button>
+                <button class="clear-filters danger-btn" id="clear-all-favorites" type="button" hidden>Limpar Minha Lista</button>
+                <button class="clear-filters danger-btn" id="clear-all-history" type="button" hidden>Limpar todo o histórico</button>
+              </div>
+            </div>
+            <div class="channel-categories-bar" id="channel-categories" role="tablist" aria-label="Categorias de canais" hidden></div>
+            <div class="channels-filter-bar" id="channels-filter-bar" hidden>
+              <label class="category-sort-field" id="channels-category-field">Categoria
+                <select id="channels-category-select" aria-label="Filtrar canais por categoria">
+                  <option value="">Todas as categorias</option>
+                </select>
+              </label>
+              <div class="search-box channels-search-box">
+                <span class="search-icon" aria-hidden="true">⌕</span>
+                <input id="channel-filter-input" type="search" placeholder="Filtrar canal ao vivo pelo nome…" aria-label="Filtrar canal pelo nome" autocomplete="off" />
+              </div>
+            </div>
+            <div class="channel-categories-bar" id="favorites-categories" role="tablist" aria-label="Filtrar Minha Lista por tipo" hidden></div>
+            <div class="channel-categories-bar" id="history-categories" role="tablist" aria-label="Filtrar histórico por tipo" hidden></div>
+
+            <div class="search-controls" id="search-controls" hidden>
+              <form class="search-box search-box-main" id="search-form" role="search">
+                <span class="search-icon" aria-hidden="true">⌕</span>
+                <select class="search-mode-select" id="main-search-mode" aria-label="Pesquisar por título ou ator">
+                  <option value="title">Por Título</option>
+                  <option value="actor">Por Ator / Elenco</option>
+                </select>
+                <input id="search-input" type="search" placeholder="Buscar títulos, atores ou aplicar filtros…" aria-label="Buscar títulos ou atores" autocomplete="off" />
+                <button class="search-submit" type="submit">Buscar</button>
+                <div class="search-suggest-dropdown" id="main-search-suggest" hidden></div>
+              </form>
+              <div class="mobile-filter-toggle-wrap">
+                <button class="mobile-filter-toggle-btn" id="toggle-search-filters" type="button" aria-expanded="false">⚙ Filtros da busca <span id="toggle-search-filters-arrow">▾</span></button>
+              </div>
+              <div class="filter-panel" id="main-filter-panel" aria-label="Filtros da busca">
+                <label id="actor-filter-wrap">Ator / Atriz (Elenco)
+                  <input id="actor-filter" type="search" placeholder="Ex: Keanu Reeves, Wagner Moura…" autocomplete="off" />
+                </label>
+                <label id="kind-filter-wrap">Tipo
+                  <select id="kind-filter">
+                    <option value="">Todos os tipos</option>
+                    <option value="filme">Filmes</option>
+                    <option value="serie">Séries</option>
+                    <option value="anime">Animes</option>
+                    <option value="dorama">Doramas</option>
+                    <option value="desenho">Desenhos</option>
+                    <option value="novela">Novelas</option>
+                  </select>
+                </label>
+                <label id="platform-filter-wrap">Plataforma
+                  <select id="platform-filter">
+                    <option value="">Todas as plataformas</option>
+                    <option value="Netflix">Netflix</option>
+                    <option value="HBO Max">HBO Max</option>
+                    <option value="Prime Video">Prime Video</option>
+                    <option value="Disney+">Disney+</option>
+                    <option value="Apple TV+">Apple TV+</option>
+                    <option value="Paramount+">Paramount+</option>
+                    <option value="Globoplay">Globoplay</option>
+                    <option value="Crunchyroll">Crunchyroll</option>
+                  </select>
+                </label>
+                <label id="genre-filter-wrap">Gênero
+                  <select id="genre-filter">
+                    <option value="">Todos</option>
+                    <option value="cinema">Cinema (Passaram no cinema)</option>
+                    <option value="acao">Ação</option>
+                    <option value="aventura">Aventura</option>
+                    <option value="animacao">Animação</option>
+                    <option value="comedia">Comédia</option>
+                    <option value="crime">Crime</option>
+                    <option value="documentario">Documentário</option>
+                    <option value="drama">Drama</option>
+                    <option value="familia">Família</option>
+                    <option value="fantasia">Fantasia</option>
+                    <option value="ficcao">Ficção científica</option>
+                    <option value="misterio">Mistério</option>
+                    <option value="romance">Romance</option>
+                    <option value="terror">Terror</option>
+                  </select>
+                </label>
+                <label id="year-filter-wrap">Ano
+                  <select id="year-filter"><option value="">Todos os anos</option></select>
+                </label>
+                <label id="sort-filter-wrap">Ordenar
+                  <select id="sort-filter">
+                    <option value="recent">Mais recentes</option>
+                    <option value="popular">Popularidade</option>
+                    <option value="rating">Melhor avaliação</option>
+                    <option value="az">A–Z</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            <section class="catalog-results" id="catalog-results" aria-live="polite">
+              <div class="result-count" id="result-count"></div>
+              <div class="catalog-grid" id="discovery-row">
+                <div class="empty-state">Escolha os filtros e clique em Buscar para consultar o catálogo.</div>
+              </div>
+              <nav class="load-more-wrap" id="load-more-wrap" aria-label="Páginas do catálogo" hidden></nav>
+            </section>
+            <section class="platform-sections" id="platform-sections" aria-label="Catálogo por tipo de conteúdo" hidden>
+              <section class="platform-section" data-section-kind="filme" aria-labelledby="platform-films-title">
+                <div class="platform-section-heading">
+                  <div class="platform-heading-left">
+                    <h2 id="platform-films-title">Filmes</h2>
+                    <span data-section-count="filme"></span>
+                  </div>
+                  <a class="platform-see-more-btn" href="#" data-platform-more="filme">Ver mais <span aria-hidden="true">&rarr;</span></a>
+                </div>
+                <div class="platform-carousel-wrap">
+                  <button class="carousel-nav-btn prev" type="button" data-carousel-prev="filme" aria-label="Anterior">‹</button>
+                  <div class="platform-carousel" data-section-grid="filme"></div>
+                  <button class="carousel-nav-btn next" type="button" data-carousel-next="filme" aria-label="Próximo">›</button>
+                </div>
+              </section>
+              <section class="platform-section" data-section-kind="serie" aria-labelledby="platform-series-title">
+                <div class="platform-section-heading">
+                  <div class="platform-heading-left">
+                    <h2 id="platform-series-title">Séries</h2>
+                    <span data-section-count="serie"></span>
+                  </div>
+                  <a class="platform-see-more-btn" href="#" data-platform-more="serie">Ver mais <span aria-hidden="true">&rarr;</span></a>
+                </div>
+                <div class="platform-carousel-wrap">
+                  <button class="carousel-nav-btn prev" type="button" data-carousel-prev="serie" aria-label="Anterior">‹</button>
+                  <div class="platform-carousel" data-section-grid="serie"></div>
+                  <button class="carousel-nav-btn next" type="button" data-carousel-next="serie" aria-label="Próximo">›</button>
+                </div>
+              </section>
+              <section class="platform-section" data-section-kind="anime" aria-labelledby="platform-anime-title">
+                <div class="platform-section-heading">
+                  <div class="platform-heading-left">
+                    <h2 id="platform-anime-title">Animes</h2>
+                    <span data-section-count="anime"></span>
+                  </div>
+                  <a class="platform-see-more-btn" href="#" data-platform-more="anime">Ver mais <span aria-hidden="true">&rarr;</span></a>
+                </div>
+                <div class="platform-carousel-wrap">
+                  <button class="carousel-nav-btn prev" type="button" data-carousel-prev="anime" aria-label="Anterior">‹</button>
+                  <div class="platform-carousel" data-section-grid="anime"></div>
+                  <button class="carousel-nav-btn next" type="button" data-carousel-next="anime" aria-label="Próximo">›</button>
+                </div>
+              </section>
+              <section class="platform-section" data-section-kind="dorama" aria-labelledby="platform-dorama-title">
+                <div class="platform-section-heading">
+                  <div class="platform-heading-left">
+                    <h2 id="platform-dorama-title">Doramas</h2>
+                    <span data-section-count="dorama"></span>
+                  </div>
+                  <a class="platform-see-more-btn" href="#" data-platform-more="dorama">Ver mais <span aria-hidden="true">&rarr;</span></a>
+                </div>
+                <div class="platform-carousel-wrap">
+                  <button class="carousel-nav-btn prev" type="button" data-carousel-prev="dorama" aria-label="Anterior">‹</button>
+                  <div class="platform-carousel" data-section-grid="dorama"></div>
+                  <button class="carousel-nav-btn next" type="button" data-carousel-next="dorama" aria-label="Próximo">›</button>
+                </div>
+              </section>
+              <section class="platform-section" data-section-kind="novela" aria-labelledby="platform-novela-title" hidden>
+                <div class="platform-section-heading">
+                  <div class="platform-heading-left">
+                    <h2 id="platform-novela-title">Novelas</h2>
+                    <span data-section-count="novela"></span>
+                  </div>
+                  <a class="platform-see-more-btn" href="#" data-platform-more="novela">Ver mais <span aria-hidden="true">&rarr;</span></a>
+                </div>
+                <div class="platform-carousel-wrap">
+                  <button class="carousel-nav-btn prev" type="button" data-carousel-prev="novela" aria-label="Anterior">‹</button>
+                  <div class="platform-carousel" data-section-grid="novela"></div>
+                  <button class="carousel-nav-btn next" type="button" data-carousel-next="novela" aria-label="Próximo">›</button>
+                </div>
+              </section>
+            </section>
+
+            <section class="sitemap-section" id="sitemap-section" aria-label="Mapa do site em texto" hidden>
+              <div class="sitemap-controls">
+                <div class="sitemap-toolbar-row">
+                  <div class="sitemap-sort-group" role="group" aria-label="Ordenação do mapa do site">
+                    <span class="sitemap-control-label">Organizar por:</span>
+                    <button class="sitemap-sort-btn active" type="button" data-mapa-sort="az">Ordem Alfabética (A–Z)</button>
+                    <button class="sitemap-sort-btn" type="button" data-mapa-sort="za">Ordem Alfabética (Z–A)</button>
+                    <button class="sitemap-sort-btn" type="button" data-mapa-sort="year_desc">Ano de Lançamento (Mais novos)</button>
+                    <button class="sitemap-sort-btn" type="button" data-mapa-sort="year_asc">Ano de Lançamento (Mais antigos)</button>
+                  </div>
+                  <form class="search-box sitemap-search-box" id="sitemap-search-form" role="search">
+                    <span class="search-icon" aria-hidden="true">⌕</span>
+                    <input id="sitemap-search-input" type="search" placeholder="Filtrar título na lista…" aria-label="Filtrar título no mapa do site" autocomplete="off" />
+                    <button class="search-submit" type="submit">Filtrar</button>
+                  </form>
+                </div>
+
+                <div class="channel-categories-bar sitemap-kind-bar" id="sitemap-kind-bar" role="tablist" aria-label="Filtrar mapa por categoria"></div>
+                <div class="sitemap-index-bar" id="sitemap-letter-bar" aria-label="Filtrar por letra inicial"></div>
+                <div class="sitemap-index-bar" id="sitemap-year-bar" aria-label="Filtrar por ano de lançamento" hidden></div>
+              </div>
+
+              <div class="result-count" id="sitemap-count"></div>
+              <div class="sitemap-text-container" id="sitemap-list"></div>
+              <nav class="load-more-wrap" id="sitemap-pagination" aria-label="Páginas do mapa do site" hidden></nav>
+            </section>
+
+            <section class="notice" id="api-notice" role="status" hidden></section>
+          </section>
+
+          <footer class="page-footer"><span>DEEPFLIX</span><div class="footer-links"><a href="/mapa">Mapa do Site (Texto A–Z / Ano)</a><span>·</span><a href="/sitemap.xml" target="_blank" rel="noreferrer">Sitemap XML</a><span>·</span><span>Encontre algo para assistir.</span></div></footer>
+        </div>
+      </main>
+
+      <nav class="mobile-bottom-nav" id="mobile-bottom-nav" aria-label="Navegação rápida no celular">
+        <a class="mobile-nav-item" href="/" data-route="all"><span class="mobile-nav-icon" aria-hidden="true">⌕</span><span>Buscar</span></a>
+        <a class="mobile-nav-item" href="/filmes" data-route="filme"><span class="mobile-nav-icon" aria-hidden="true">▣</span><span>Filmes</span></a>
+        <a class="mobile-nav-item" href="/series" data-route="serie"><span class="mobile-nav-icon" aria-hidden="true">▤</span><span>Séries</span></a>
+        <a class="mobile-nav-item" href="/canais" data-route="canais"><span class="mobile-nav-icon" aria-hidden="true">◉</span><span>Canais</span></a>
+        <a class="mobile-nav-item" href="/favoritos" data-route="favoritos"><span class="mobile-nav-icon" aria-hidden="true">★</span><span>Lista</span><span class="nav-count mobile-nav-count" id="mobile-favorites-count" hidden>0</span></a>
+        <button class="mobile-nav-item mobile-nav-btn" id="mobile-bottom-account-btn" type="button"><span class="mobile-nav-icon" aria-hidden="true">●</span><span id="mobile-bottom-account-label">Conta</span></button>
+      </nav>
+    </div>
+
+    <main class="watch-page" id="watch-page" hidden>
+      <header class="watch-topbar">
+        <a class="watch-back" id="watch-back-link" href="/series">← Voltar ao catálogo</a>
+        <a class="brand watch-brand" href="/"><img class="brand-logo-img" src="/logo.svg" alt="DEEPFLIX" width="150" height="30" /></a>
+        <div class="watch-topbar-right">
+          <div class="watch-topbar-user" id="watch-topbar-user"></div>
+        </div>
+      </header>
+      <div class="watch-page-content">
+        <div class="watch-layout" id="watch-layout">
+          <section class="watch-main">
+            <div class="watch-frame-wrap" id="watch-frame-wrap"></div>
+            <div class="player-options-bar" id="watch-player-options" hidden aria-label="Opções de servidor e áudio"></div>
+            <div class="watch-channel-zapping" id="watch-channel-zapping" hidden aria-label="Troca rápida de canal">
+              <button class="episode-nav-button" id="watch-prev-channel" type="button">← Canal Anterior</button>
+              <div class="zapping-center">
+                <span id="watch-zapping-label">Canal ao Vivo</span>
+                <button class="fav-action-btn fav-channel-inline" id="watch-channel-fav-btn" type="button">☆ Favoritar Canal</button>
+              </div>
+              <button class="episode-nav-button" id="watch-next-channel" type="button">Próximo Canal →</button>
+            </div>
+            <div class="watch-episode-nav" id="watch-episode-nav" hidden>
+              <button class="episode-nav-button" id="watch-previous" type="button">← Anterior</button>
+              <span id="watch-episode-label"></span>
+              <button class="episode-list-button" id="watch-show-list" type="button">Lista completa</button>
+              <button class="episode-nav-button" id="watch-next" type="button">Próximo →</button>
+            </div>
+          </section>
+          <article class="watch-info" id="watch-info">
+            <p class="detail-type" id="watch-type">FILME</p>
+            <h1 id="watch-title">Carregando título…</h1>
+            <h2 class="watch-episode-title" id="watch-episode-title" hidden></h2>
+            <div class="detail-meta" id="watch-meta"></div>
+            <p class="watch-overview" id="watch-overview">Carregando informações…</p>
+            <p class="watch-genres" id="watch-genres"></p>
+            <div class="watch-actions-row" id="watch-actions-row">
+              <button class="secondary-action-btn" id="watch-trailer-btn" type="button" hidden>🎬 Ver Trailer</button>
+              <button class="fav-action-btn" id="watch-fav-btn" type="button">☆ Minha Lista</button>
+            </div>
+            <div class="cast-block" id="watch-cast-wrap" hidden>
+              <span class="cast-label">Elenco principal (clique para ver títulos):</span>
+              <div class="cast-chips" id="watch-cast"></div>
+            </div>
+          </article>
+        </div>
+        <section class="watch-episodes" id="watch-episodes" hidden aria-labelledby="watch-episodes-heading">
+          <div class="episode-heading">
+            <div><h2 id="watch-episodes-heading">Episódios</h2></div>
+          </div>
+          <div class="episode-toolbar">
+            <label class="season-picker">Temporada <select id="watch-season-select" aria-label="Selecionar temporada"></select></label>
+            <label class="episode-jump">Ir para episódio <select id="watch-episode-jump" aria-label="Ir para episódio"></select></label>
+            <label class="episode-filter-label">Buscar ep. <input id="watch-episode-filter" type="search" placeholder="Nº ou nome do episódio…" aria-label="Filtrar episódio por número ou nome" autocomplete="off" /></label>
+            <label class="episode-reverse"><input id="watch-episode-reverse" type="checkbox"> Inverter ordem</label>
+          </div>
+          <p class="episode-status" id="watch-episode-status" role="status"></p>
+          <div class="episode-list" id="watch-episode-list"></div>
+        </section>
+
+        <section class="watch-similar-section" id="watch-similar-section" hidden aria-labelledby="watch-similar-heading">
+          <div class="episode-heading">
+            <div><h2 id="watch-similar-heading">Títulos Semelhantes</h2></div>
+          </div>
+          <div class="catalog-grid similar-grid" id="watch-similar-grid"></div>
+        </section>
+
+        <section class="watch-channels-directory" id="watch-channels-directory" hidden aria-labelledby="watch-channels-heading">
+          <div class="watch-channels-header">
+            <div>
+              <h2 id="watch-channels-heading">Todos os Canais</h2>
+            </div>
+            <div class="search-box watch-channels-search">
+              <span class="search-icon" aria-hidden="true">⌕</span>
+              <input id="watch-channel-filter" type="search" placeholder="Filtrar canal ao vivo…" aria-label="Filtrar canal ao vivo" autocomplete="off" />
+            </div>
+          </div>
+          <div class="channel-categories-bar" id="watch-channel-categories" role="tablist" aria-label="Categorias de canais"></div>
+          <div class="channels-text-container" id="watch-channels-list"></div>
+        </section>
+      </div>
+    </main>
+
+    <dialog id="detail-dialog" class="detail-dialog">
+      <div class="detail-shell">
+        <button class="close-button detail-close" id="close-detail" type="button" aria-label="Fechar detalhes">×</button>
+        <div class="detail-backdrop" id="detail-backdrop"></div>
+        <div class="detail-content">
+          <p class="detail-type" id="detail-type">FILME</p>
+          <h2 id="detail-title">Título</h2>
+          <div class="detail-meta" id="detail-meta"></div>
+          <p class="detail-overview" id="detail-overview">Sinopse indisponível.</p>
+          <div class="cast-block" id="detail-cast-wrap" hidden>
+            <span class="cast-label">Elenco principal (clique para ver títulos):</span>
+            <div class="cast-chips" id="detail-cast"></div>
+          </div>
+          <div class="detail-platforms" id="detail-platforms"></div>
+          <div class="detail-actions">
+            <button class="watch-button" id="detail-play" type="button">Abrir player <span aria-hidden="true">▶</span></button>
+            <button class="secondary-action-btn" id="detail-trailer-btn" type="button" hidden>🎬 Ver Trailer</button>
+            <button class="fav-action-btn" id="detail-fav-btn" type="button">☆ Minha Lista</button>
+          </div>
+          <section class="episode-browser" id="episode-browser" hidden aria-labelledby="episodes-heading">
+            <div class="episode-heading">
+              <div><p class="detail-type">CONTINUE ASSISTINDO</p><h3 id="episodes-heading">Episódios</h3></div>
+            </div>
+            <div class="episode-toolbar">
+              <label class="season-picker">Temporada <select id="season-select" aria-label="Selecionar temporada"></select></label>
+              <label class="episode-jump">Ir para episódio <select id="episode-jump" aria-label="Ir para episódio"></select></label>
+              <label class="episode-filter-label">Buscar ep. <input id="episode-filter" type="search" placeholder="Nº ou nome…" aria-label="Filtrar episódio por número ou nome" autocomplete="off" /></label>
+              <label class="episode-reverse"><input id="episode-reverse" type="checkbox"> Inverter ordem</label>
+            </div>
+            <p class="episode-status" id="episode-status" role="status"></p>
+            <div class="episode-list" id="episode-list"></div>
+          </section>
+          <section class="detail-similar-wrap" id="detail-similar-wrap" hidden aria-labelledby="detail-similar-heading">
+            <div class="episode-heading">
+              <div><p class="detail-type">VOCÊ TAMBÉM PODE GOSTAR</p><h3 id="detail-similar-heading">Títulos Semelhantes</h3></div>
+            </div>
+            <div class="catalog-grid similar-grid" id="detail-similar-grid"></div>
+          </section>
+          <small class="attribution">Catálogo DEEPFLIX · Metadados TMDB.</small>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog id="player-dialog" class="player-dialog">
+      <div class="player-shell">
+        <div class="player-bar"><div><span class="player-brand">DEEPFLIX</span><span class="player-title" id="player-title">Assistindo agora</span></div><button class="close-button" id="close-player" type="button" aria-label="Fechar player">×</button></div>
+        <div class="player-frame-wrap" id="player-frame-wrap"></div>
+        <div class="player-options-bar" id="modal-player-options" hidden aria-label="Opções de servidor e áudio"></div>
+        <div class="player-episode-nav" id="player-episode-nav" hidden>
+          <button class="episode-nav-button" id="previous-episode" type="button">← Anterior</button>
+          <span id="player-episode-label"></span>
+          <button class="episode-list-button" id="show-episode-list" type="button">Lista completa</button>
+          <button class="episode-nav-button" id="next-episode" type="button">Próximo →</button>
+        </div>
+        <p class="player-note">Selecione um servidor para assistir.</p>
+      </div>
+    </dialog>
+
+    <dialog id="trailer-dialog" class="player-dialog trailer-dialog" aria-label="Trailer oficial">
+      <div class="player-shell">
+        <div class="player-bar">
+          <div><span class="player-brand">TRAILER</span><span class="player-title" id="trailer-title">Trailer oficial</span></div>
+          <button class="close-button" id="close-trailer" type="button" aria-label="Fechar trailer">×</button>
+        </div>
+        <div class="player-frame-wrap" id="trailer-frame-wrap"></div>
+      </div>
+    </dialog>
+
+    <dialog id="auth-dialog" class="auth-dialog" aria-labelledby="auth-dialog-title">
+      <div class="auth-shell">
+        <button class="close-button auth-close" id="close-auth" type="button" aria-label="Fechar janela de conta">×</button>
+
+        <div id="auth-guest-view">
+          <h2 id="auth-dialog-title">Acesse sua conta</h2>
+          <p class="auth-subtitle">Salve seu histórico de filmes, séries, animes, doramas, desenhos e novelas e continue assistindo de onde parou.</p>
+
+          <div class="auth-tabs" role="tablist">
+            <button class="auth-tab active" id="auth-tab-login" type="button" role="tab" aria-selected="true">Entrar</button>
+            <button class="auth-tab" id="auth-tab-register" type="button" role="tab" aria-selected="false">Criar conta</button>
+          </div>
+
+          <form class="auth-form" id="auth-form" autocomplete="on">
+            <label class="auth-field" id="auth-name-wrap" hidden>
+              <span>Seu nome ou apelido</span>
+              <input id="auth-name-input" type="text" placeholder="Ex: Lucas" autocomplete="name" />
+            </label>
+            <label class="auth-field">
+              <span>E-mail</span>
+              <input id="auth-username-input" type="email" placeholder="seu@email.com" autocomplete="username" required />
+            </label>
+            <label class="auth-field">
+              <span>Senha</span>
+              <input id="auth-password-input" type="password" placeholder="Mínimo de 8 caracteres" autocomplete="current-password" required />
+            </label>
+            <p class="auth-error" id="auth-error" role="alert" hidden></p>
+            <button class="auth-submit-btn" id="auth-submit-btn" type="submit">Entrar na conta</button>
+          </form>
+        </div>
+
+        <div id="auth-user-view" hidden>
+          <div class="auth-profile-card">
+            <span class="auth-avatar" id="auth-profile-avatar">U</span>
+            <div>
+              <h2 id="auth-profile-name">Usuário</h2>
+              <p class="auth-profile-username" id="auth-profile-username">@usuario</p>
+            </div>
+          </div>
+          <p class="auth-profile-stats" id="auth-profile-stats">0 itens no histórico de reprodução</p>
+          <div class="auth-profile-actions">
+            <a class="watch-button" id="auth-go-history" href="/historico">Ver meu histórico ▶</a>
+            <button class="clear-filters danger-btn" id="auth-logout-btn" type="button">Sair da conta</button>
+          </div>
+        </div>
+      </div>
+    </dialog>
+
+    <button class="back-to-top-btn" id="back-to-top" type="button" hidden aria-label="Voltar ao topo da página">↑ Topo</button>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>
