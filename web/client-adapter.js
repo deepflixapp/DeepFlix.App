@@ -371,6 +371,7 @@ window.resolvePlayClient = async function(kind, id, season = 1, episode = 1) {
                 server: 'Pluto TV Oficial',
                 label: 'Pluto TV (Ao Vivo)',
                 url: proxiedStreamUrl,
+                kind: 'hls',
                 type: 'hls',
                 audio: 'Ao Vivo'
               }]
