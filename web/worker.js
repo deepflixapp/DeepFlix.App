@@ -2,17 +2,19 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    // Se for requisição direta de arquivo com extensão (.js, .css, .svg, .png, etc.)
-    if (/\.[a-zA-Z0-9]+$/.test(url.pathname)) {
-      const assetResponse = await env.ASSETS.fetch(request);
-      if (assetResponse.status !== 404 && assetResponse.status !== 500) {
-        return assetResponse;
-      }
+    // Se a requisição for para a raiz exata ou um arquivo estático (com ponto de extensão)
+    if (url.pathname === '/' || /\.[a-zA-Z0-9]+$/.test(url.pathname)) {
+      return env.ASSETS.fetch(request);
     }
 
-    // Para qualquer outra rota da aplicação (ex: /filmes, /series, /canais, /assistir/...),
-    // serve o index.html como página única SPA com status 200
-    const indexRequest = new Request(new URL('/index.html', request.url), request);
+    // Para qualquer rota virtual de SPA (ex: /filmes, /series, /canais),
+    // reescreve a URL para /index.html antes de passar para o env.ASSETS
+    const indexUrl = new URL('/index.html', url.origin);
+    const indexRequest = new Request(indexUrl.toString(), {
+      method: request.method,
+      headers: request.headers,
+    });
+
     return env.ASSETS.fetch(indexRequest);
   },
 };
