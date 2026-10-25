@@ -32,7 +32,7 @@ jobs:
 
       - name: Install Project Dependencies
         run: |
-          flutter create . --org com.deepflix --platforms=android,windows
+          flutter create . --project-name deepflix_app --org com.deepflix --platforms=android,windows
           flutter pub get
 
       - name: Build Universal Release APK
@@ -63,7 +63,7 @@ jobs:
 
       - name: Install Project Dependencies
         run: |
-          flutter create . --org com.deepflix --platforms=android,windows
+          flutter create . --project-name deepflix_app --org com.deepflix --platforms=android,windows
           flutter pub get
 
       - name: Build Windows Executable
