@@ -1,0 +1,23 @@
+# Build artifacts
+build/
+.dart_tool/
+.packages
+
+# Flutter / Dart
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Android
+.gradle/
+local.properties
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
+
+# Windows
+windows/flutter/ephemeral/
+
+# IDE files
+.idea/
+.vscode/
+*.iml
