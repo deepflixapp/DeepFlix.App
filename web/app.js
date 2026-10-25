@@ -354,7 +354,7 @@ async function requestJson(url, options = {}) {
   // Se for busca ou lista de catálogo, responde client-side dos Gists
   if (url.startsWith('/api/lista')) {
     const parsedUrl = new URL(url, window.location.origin);
-    const cat = parsedUrl.searchParams.get('categoria') || 'filme';
+    const cat = parsedUrl.searchParams.get('categoria') || parsedUrl.searchParams.get('category') || 'filme';
     const query = (parsedUrl.searchParams.get('q') || '').toLowerCase();
     const page = parseInt(parsedUrl.searchParams.get('page') || '1', 10);
     const pageSize = 50;

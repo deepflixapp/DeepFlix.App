@@ -32,9 +32,11 @@ window.fetchGistDirect = async function(category) {
   try {
     const res = await fetch(`${url}?t=${Date.now()}`);
     if (!res.ok) return [];
-    const text = await res.text();
+    const rawText = await res.text();
+    // Sanitiza '&' soltos no XML para não quebrar o DOMParser (muito comum em canais como FILMES & SÉRIES)
+    const sanitizedXml = rawText.replace(/&(?!(amp|lt|gt|quot|apos|#\d+|#x[a-f\d]+);)/gi, '&amp;');
     const parser = new DOMParser();
-    const xml = parser.parseFromString(text, 'text/xml');
+    const xml = parser.parseFromString(sanitizedXml, 'text/xml');
     const tagName = category === 'filme' ? 'item' : 'channel';
     const elements = xml.querySelectorAll(tagName);
     const items = [];
@@ -50,7 +52,9 @@ window.fetchGistDirect = async function(category) {
 
       const thumb = el.querySelector('thumbnail')?.textContent?.trim() || el.querySelector('poster')?.textContent?.trim() || el.querySelector('logo')?.textContent?.trim() || '';
       const desc = cleanTitleText(el.querySelector('description')?.textContent?.trim() || '');
-      const link = el.querySelector('link')?.textContent?.trim() || el.querySelector('stream_url')?.textContent?.trim() || '';
+      const link = el.querySelector('link')?.textContent?.trim() || 
+                   el.querySelector('stream_url')?.textContent?.trim() || 
+                   el.querySelector('externallink')?.textContent?.trim() || '';
       const cat = el.querySelector('category')?.textContent?.trim() || (category === 'canais' ? 'Geral' : category);
 
       items.push({
