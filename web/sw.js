@@ -1,5 +1,5 @@
 /* DEEPFLIX PWA Service Worker */
-const CACHE_NAME = 'deepflix-pwa-v6';
+const CACHE_NAME = 'deepflix-pwa-v7';
 const STATIC_ASSETS = [
   '/',
   '/manifest.webmanifest',
@@ -27,6 +27,11 @@ self.addEventListener('fetch', event => {
   const request = event.request;
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
+
+  // Só intercepta requisições de mesma origem (assets do app local)
+  if (url.origin !== self.location.origin) {
+    return;
+  }
 
   // Não intercepta chamadas de API, streams de vídeo/HLS ou m3u8
   if (
