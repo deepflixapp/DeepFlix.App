@@ -252,10 +252,23 @@ function formatRelativeDate(isoStr) {
   if (diffHours < 24) return `Há ${diffHours}h`;
   return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(dt);
 }
+function cleanKodiTitle(raw = '') {
+  return String(raw || '')
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+    .replace(/\[CR\]/gi, ' ')
+    .replace(/\[\/?(?:B|I|COLOR(?:\s+[^\]]+)?|UPPERCASE|LOWERCASE)\]/gi, '')
+    .replace(/&#(x[\da-f]+|\d+);/gi, (_, n) => {
+      const code = n[0].toLowerCase() === 'x' ? parseInt(n.slice(1), 16) : Number(n);
+      return code <= 0x10ffff ? String.fromCodePoint(code) : '';
+    })
+    .replace(/&(amp|lt|gt|quot|apos);/g, (_, n) => ({ amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" })[n])
+    .trim();
+}
+
 function titleOf(item) {
-  if (typeof item === 'string' || typeof item === 'number') return String(item);
+  if (typeof item === 'string' || typeof item === 'number') return cleanKodiTitle(item);
   const title = item?.title || item?.name || item?.channel_name || item?.channel || item?.episode_title || item?.series_name || item?.original_title || item?.original_name || item?.nome || item?.titulo || item?.label;
-  if (title) return title;
+  if (title) return cleanKodiTitle(title);
   return item?.id || item?.itemId || item?.tmdb || item?.slug || 'Título do catálogo';
 }
 function idOf(item) {
@@ -358,6 +371,12 @@ async function requestJson(url, options = {}) {
     if (query) {
       items = items.filter(it => it.title && it.title.toLowerCase().includes(query));
     }
+
+    // Filtra itens com nomes de controle ou prxima pgina
+    items = items.filter(it => {
+      const t = titleOf(it);
+      return t && !/PR[O]XIMA\s*P[A]GINA|P[A]GINA\s*\d+|CANAIS\s*\+18|ADULTO/i.test(t);
+    });
 
     const total = items.length;
     const startIndex = (page - 1) * pageSize;
@@ -1699,15 +1718,11 @@ async function openDetails(item, kind, season = null, episode = null) {
   if (MEDIA_KINDS.has(kind)) {
     const id = idOf(item);
     if (!id) return showToast('Este título não tem um identificador válido.');
-    const saved = findHistoryEntry(kind, id);
-    const targetSeason = season || saved?.season || 1;
-    const targetEpisode = episode || saved?.episode || 1;
-    const route = `/assistir/${kind}/${encodeURIComponent(id)}${EPISODIC_KINDS.has(kind) ? `/${Math.max(1, Number(targetSeason) || 1)}/${Math.max(1, Number(targetEpisode) || 1)}` : ''}`;
-    window.location.assign(route);
+    openMediaPlayer(item, kind, Number($('#season-select')?.value) || 1, 1);
     return;
   }
   if (kind === 'canais') {
-    window.location.assign(`/assistir/canais/${encodeURIComponent(idOf(item))}`);
+    openChannelPlayer(item);
     return;
   }
   state.selected = { item, kind };
@@ -2228,7 +2243,19 @@ function openMediaPlayer(item, kind, season = 1, episode = 1) {
 function openChannelPlayer(item) {
   const id = idOf(item);
   if (!id) return showToast('Este canal não tem um identificador válido.');
-  window.location.assign(`/assistir/canais/${encodeURIComponent(id)}`);
+  state.playback = { item, kind: 'canais', season: 0, episode: 0 };
+  $('#player-title').textContent = titleOf(item);
+  $('#detail-dialog')?.close();
+  if (!$('#player-dialog')?.open) $('#player-dialog')?.showModal();
+  loadAndPlayTarget({
+    kind: 'canais',
+    id,
+    season: 1,
+    episode: 1,
+    target: 'modal',
+    titleText: `Canal ${titleOf(item)}`,
+    itemMeta: item,
+  });
 }
 
 function renderPlayerEpisodeNav() {
