@@ -1,0 +1,26 @@
+{
+  "name": "DEEPFLIX — Filmes, Séries, Animes, Novelas e Canais",
+  "short_name": "DEEPFLIX",
+  "description": "Catálogo completo de filmes, séries, animes, doramas, desenhos, novelas e canais de TV ao vivo.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#08070b",
+  "theme_color": "#08070b",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 170 34" width="170" height="34" fill="none" aria-label="DEEPFLIX">
+  <defs>
+    <linearGradient id="neonPurpleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FAF5FF"/>
+      <stop offset="25%" stop-color="#E9D5FF"/>
+      <stop offset="60%" stop-color="#C084FC"/>
+      <stop offset="100%" stop-color="#A855F7"/>
+    </linearGradient>
+    <filter id="neonFullGlow" x="-20%" y="-25%" width="150%" height="160%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="#A855F7" flood-opacity="0.8"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <style>
+    .brand-neon-text {
+      font-family: -apple-system, BlinkMacSystemFont, "Montserrat", "Inter", "Segoe UI", Roboto, sans-serif;
+      font-weight: 900;
+      font-style: italic;
+      font-size: 26px;
+      letter-spacing: 1.8px;
+      user-select: none;
+    }
+  </style>
+  <g class="brand-neon-text" filter="url(#neonFullGlow)">
+    <text x="2" y="26" fill="url(#neonPurpleGrad)">DEEPFLIX</text>
+  </g>
+</svg>

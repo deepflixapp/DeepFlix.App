@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 170 34" width="170" height="34" fill="none" aria-label="DEEPFLIX">
+  <defs>
+    <linearGradient id="deepWhiteGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#E2E8F0"/>
+    </linearGradient>
+    <linearGradient id="flixPurpleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#D8B4FE"/>
+      <stop offset="45%" stop-color="#A855F7"/>
+      <stop offset="100%" stop-color="#7E22CE"/>
+    </linearGradient>
+    <filter id="bicolorShadow" x="-10%" y="-15%" width="130%" height="135%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.65"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#9333EA" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <style>
+    .brand-logo-text {
+      font-family: -apple-system, BlinkMacSystemFont, "Montserrat", "Inter", "Segoe UI", Roboto, sans-serif;
+      font-weight: 900;
+      font-style: italic;
+      font-size: 26px;
+      letter-spacing: 1.5px;
+      user-select: none;
+    }
+  </style>
+  <g class="brand-logo-text" filter="url(#bicolorShadow)">
+    <text x="2" y="26" fill="url(#deepWhiteGrad)">DEEP</text>
+    <text x="81" y="26" fill="url(#flixPurpleGrad)">FLIX</text>
+  </g>
+</svg>
