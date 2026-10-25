@@ -141,67 +141,71 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0E1118),
       body: Center(
-        child: _loading
-            ? const CircularProgressIndicator(color: Color(0xFF00E5FF))
-            : SingleChildScrollView(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      'DEEPFLIX',
-                      style: TextStyle(
-                        color: Color(0xFF00E5FF),
-                        fontSize: 36,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 3,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Quem está assistindo?',
-                      style: TextStyle(color: Colors.white70, fontSize: 20),
-                    ),
-                    const SizedBox(height: 40),
-                    Wrap(
-                      spacing: 24,
-                      runSpacing: 24,
-                      alignment: WrapAlignment.center,
-                      children: [
-                        ..._profiles.map((p) => _buildProfileCard(p)),
-                        _buildAddProfileCard(),
-                      ],
-                    ),
-                    const SizedBox(height: 36),
-                    // Rodapé com Declaração de Gratuidade e Termos
-                    GestureDetector(
-                      onTap: () => DisclaimerModal.show(context),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.04),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white12),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.volunteer_activism, color: Color(0xFF00E5FF), size: 14),
-                            SizedBox(width: 8),
-                            Text(
-                              'Projeto 100% Gratuito & Sem Fins Lucrativos • Ver Termos Legais',
-                              style: TextStyle(
-                                color: Colors.white60,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                'DEEPFLIX',
+                style: TextStyle(
+                  color: Color(0xFF9D4EDD),
+                  fontSize: 36,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 3,
                 ),
               ),
+              const SizedBox(height: 12),
+              const Text(
+                'Quem está assistindo?',
+                style: TextStyle(color: Colors.white70, fontSize: 20),
+              ),
+              const SizedBox(height: 40),
+              if (_loading)
+                const Padding(
+                  padding: EdgeInsets.all(32.0),
+                  child: CircularProgressIndicator(color: Color(0xFF9D4EDD)),
+                )
+              else
+                Wrap(
+                  spacing: 24,
+                  runSpacing: 24,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    ..._profiles.map((p) => _buildProfileCard(p)),
+                    _buildAddProfileCard(),
+                  ],
+                ),
+              const SizedBox(height: 36),
+              // Rodapé com Declaração de Gratuidade e Termos
+              GestureDetector(
+                onTap: () => DisclaimerModal.show(context),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.04),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.volunteer_activism, color: Color(0xFF9D4EDD), size: 14),
+                      SizedBox(width: 8),
+                      Text(
+                        'Projeto 100% Gratuito & Sem Fins Lucrativos • Ver Termos Legais',
+                        style: TextStyle(
+                          color: Colors.white60,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
