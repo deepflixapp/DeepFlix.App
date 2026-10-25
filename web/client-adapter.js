@@ -362,6 +362,7 @@ window.resolvePlayClient = async function(kind, id, season = 1, episode = 1) {
           const jwt = bootData.sessionToken;
           if (jwt) {
             const finalUrl = `https://cfd-v4-service-channel-stitcher-use1-1.prd.pluto.tv/v2/stitch/hls/channel/${chId}/master.m3u8?advertisingId=&appName=web&appVersion=9.21.0-bf9f5b4369933742859f3b2581c935110922f642&app_name=web&clientDeviceType=0&clientID=${deviceId}&clientModelNumber=1.0.0&country=BR&deviceDNT=false&deviceId=${deviceId}&deviceLat=-18.9500&deviceLon=-48.2400&deviceMake=edge-chromium&deviceModel=web&deviceType=web&deviceVersion=148.0.0&marketingRegion=BR&serverSideAds=false&sessionID=${sid}&sid=${sid}&userId=&includeExtendedEvents=true&eventVOD=false&jwt=${encodeURIComponent(jwt)}&masterJWTPassthrough=true`;
+            const proxiedStreamUrl = `/api/pluto/stream?url=${encodeURIComponent(finalUrl)}`;
             return {
               title: found.title,
               category: found.category || 'Pluto TV',
@@ -369,7 +370,7 @@ window.resolvePlayClient = async function(kind, id, season = 1, episode = 1) {
               options: [{
                 server: 'Pluto TV Oficial',
                 label: 'Pluto TV (Ao Vivo)',
-                url: finalUrl,
+                url: proxiedStreamUrl,
                 type: 'hls',
                 audio: 'Ao Vivo'
               }]
