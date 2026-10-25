@@ -22,7 +22,7 @@ async function migrate(env,entries) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (['/api/health','/health'].includes(url.pathname)) return Response.json({ok:true,version:'20261025-v5',database:Boolean(env.DB),media:Boolean(env.PROXY_SECRET),resolver:Boolean(env.BRAZUCA_RESOLVER_TOKEN),metadata:Boolean(env.TMDB_READ_TOKEN || env.TMDB_API_KEY)});
+    if (['/api/health','/health'].includes(url.pathname)) return Response.json({ok:true,version:'20261025-v6',database:Boolean(env.DB),media:Boolean(env.PROXY_SECRET),resolver:Boolean(env.BRAZUCA_RESOLVER_TOKEN),metadata:Boolean(env.TMDB_READ_TOKEN || env.TMDB_API_KEY)});
     if (url.pathname.startsWith('/api/auth/') || ['/api/history','/api/favorites'].includes(url.pathname)) return handleAuth(request,env,entries => migrate(env,entries));
     if (url.pathname.startsWith('/api/') || url.pathname === '/sitemap.xml' || /^\/(?:playlist|canais)\.m3u8?$/.test(url.pathname)) {
       if (!['GET','HEAD'].includes(request.method)) return Response.json({error:'Método não permitido.'},{status:405});

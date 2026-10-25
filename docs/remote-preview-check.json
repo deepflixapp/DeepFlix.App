@@ -1,0 +1,18 @@
+{
+  "checkedAt": "2026-10-25T20:12:15.730Z",
+  "base": "https://deepflix-preview.deepflix-app.workers.dev",
+  "results": [
+    {
+      "name": "health bindings",
+      "ok": true
+    },
+    {
+      "name": "complete channels",
+      "ok": true
+    },
+    {
+      "name": "D1 remote cookies, two sessions, deletion and account isolation",
+      "ok": true
+    }
+  ]
+}

@@ -25,6 +25,7 @@ async function ensureOverflixOrigin() {
   try { return await overflixOriginPending; } finally { overflixOriginPending = null; }
 }
 const DEFAULT_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36';
+const titleCollator = new Intl.Collator('pt-BR');
 const EMBED_HOSTS = new Set(['mixdrop.top','mixdrop.ps','mxdrop.click','streamtape.com','bysebuho.com','playmogo.com','myvidplay.com']);
 const media = createMediaProxy(env, fetcher);
 const buildProxiedUrl = media.url;
@@ -520,20 +521,18 @@ function deduplicateMediaCatalog(items = []) {
       continue;
     }
 
-    const entry = {
-      ...item,
-      routes: [...(item.routes || [])],
-      aliases: new Set([item.id, ...(item.aliases || [])].filter(Boolean)),
-    };
+    // Reuse parsed records: cloning every record retains two full catalogs
+    // while rebuilding indexes in a memory-limited Worker isolate.
+    const entry = item;
+    entry.routes ||= [];
+    entry.aliases = new Set([item.id, ...(item.aliases || [])].filter(Boolean));
     if (tmdbKey) byTmdb.set(tmdbKey, entry);
     if (titleKey) byTitleYear.set(titleKey, entry);
     deduped.push(entry);
   }
 
-  return deduped.map(item => ({
-    ...item,
-    aliases: Array.from(item.aliases || []),
-  }));
+  for (const item of deduped) item.aliases = Array.from(item.aliases || []);
+  return deduped;
 }
 
 function rebuildCatalogIndexes() {
@@ -545,7 +544,7 @@ function rebuildCatalogIndexes() {
     dedupedList.sort((a, b) => {
       const diff = getSortableReleaseDate(b).localeCompare(getSortableReleaseDate(a));
       if (diff !== 0) return diff;
-      return String(a.title || a.name || '').localeCompare(String(b.title || b.name || ''), 'pt-BR');
+      return titleCollator.compare(String(a.title || a.name || ''), String(b.title || b.name || ''));
     });
     for (const item of dedupedList) {
       store.byKindAndId.set(`${kind}:${item.id}`, item);
@@ -2117,6 +2116,9 @@ async function ensureCatalog(kind) {
           const cfg = GIST_SOURCES[k];
           const text = await cachedTextFetch(cfg.url, {}, 900000);
           const items = parseCatalogXml(text, k, cfg.tag);
+          // Parsed catalogs already have their own freshness window.
+          // Avoid keeping the large source XML alongside normalized records.
+          httpCache.delete(`GET:${cfg.url}:`);
           if (!items.length) throw new Error(`Catálogo ${k} indisponível.`);
           store.catalog[k] = items;
         }
