@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_cast_framework/flutter_cast_framework.dart';
-import '../services/cast_service.dart';
 
 class CastButton extends StatelessWidget {
   final Color? color;
@@ -8,19 +6,17 @@ class CastButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!CastService.isSupportedOnCurrentPlatform) {
-      return const SizedBox.shrink();
-    }
-
-    return CastMiniController(
-      // Cast Framework Media Route Button
-      child: IconButton(
-        icon: Icon(Icons.cast, color: color ?? Colors.white),
-        tooltip: 'Transmitir para TV (Chromecast)',
-        onPressed: () {
-          FlutterCastFramework.instance.showCastDialog();
-        },
-      ),
+    return IconButton(
+      icon: Icon(Icons.cast, color: color ?? Colors.white70),
+      tooltip: 'Transmitir para TV',
+      onPressed: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Dispositivos de transmissão na mesma rede local'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      },
     );
   }
 }
