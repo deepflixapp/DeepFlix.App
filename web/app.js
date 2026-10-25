@@ -388,12 +388,17 @@ async function requestJson(url, options = {}) {
   if (url.startsWith('/api/lista')) {
     const parsedUrl = new URL(url, window.location.origin);
     const cat = parsedUrl.searchParams.get('categoria') || parsedUrl.searchParams.get('category') || 'filme';
-    const query = (parsedUrl.searchParams.get('q') || '').toLowerCase();
+    const query = (parsedUrl.searchParams.get('q') || '').toLowerCase().trim();
+    const platform = (parsedUrl.searchParams.get('platform') || '').toLowerCase().trim();
     const page = parseInt(parsedUrl.searchParams.get('page') || '1', 10);
     const pageSize = 50;
 
     let items = [];
-    if (cat === 'all') {
+
+    // Se a requisição veio de uma categoria de streaming (ex: Netflix, HBO Max, etc.)
+    if (platform && window.fetchPlatformItems) {
+      items = await window.fetchPlatformItems(platform, ['serie', 'anime', 'dorama'].includes(cat) ? 'serie' : 'filme');
+    } else if (cat === 'all' || cat === 'pesquisa') {
       const allCats = ['filme', 'serie', 'anime', 'dorama', 'desenho', 'novela', 'canais'];
       const results = await Promise.all(allCats.map(c => window.fetchGistDirect ? window.fetchGistDirect(c) : []));
       items = results.flat();
@@ -402,13 +407,18 @@ async function requestJson(url, options = {}) {
     }
 
     if (query) {
-      items = items.filter(it => it.title && it.title.toLowerCase().includes(query));
+      const normQ = query.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      items = items.filter(it => {
+        const rawT = (it.title || it.name || '').toLowerCase();
+        const normT = rawT.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        return normT.includes(normQ) || rawT.includes(query);
+      });
     }
 
-    // Filtra itens com nomes de controle ou prxima pgina
+    // Filtra itens com nomes de controle ou próxima página
     items = items.filter(it => {
       const t = titleOf(it);
-      return t && !/PR[O]XIMA\s*P[A]GINA|P[A]GINA\s*\d+|CANAIS\s*\+18|ADULTO/i.test(t);
+      return t && !/PR[OÓ]XIMA\s*P[AÁ]GINA|P[AÁ]GINA\s*\d+|CANAIS\s*\+18|ADULTO/i.test(t);
     });
 
     const total = items.length;

@@ -14,7 +14,53 @@ const GIST_URLS = {
   shows: 'https://gist.githubusercontent.com/skyrisk/5b87797329c7b46422565ffbaab3be7e/raw/page.xml',
 };
 
-const RESOLVER_API_HOSTS = ['api.geekantenado.online', 'geekantenado.fly.dev'];
+const TMDB_READ_TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIxYzc0YTFkYjA2NmYwOWU4NDYzYTBkMDZiMDdlNTczNCIsIm5iZiI6MTc5MjU1ODY1Ny4zNjYwMDAyLCJzdWIiOiI2YWQ4NDY0MTljZDlmNjY0ZThlYzMyMmUiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.rgR8Aqjfnjh5ooX8183IeK32uo-3QMcTzentGbYy5Ow';
+const PLATFORM_PROVIDER_IDS = {
+  'netflix': 8,
+  'hbo-max': 1899,
+  'prime-video': 119,
+  'disney-plus': 337,
+  'apple-tv-plus': 350,
+  'paramount-plus': 531,
+  'globoplay': 307,
+  'crunchyroll': 283,
+};
+const _platformCache = new Map();
+
+window.fetchPlatformItems = async function(platformSlug, kind = 'filme') {
+  const providerId = PLATFORM_PROVIDER_IDS[platformSlug];
+  if (!providerId) return [];
+
+  const cacheKey = `${platformSlug}:${kind}`;
+  if (_platformCache.has(cacheKey)) return _platformCache.get(cacheKey);
+
+  const tmdbType = kind === 'filme' ? 'movie' : 'tv';
+  try {
+    // 1. Busca IDs populares do provedor no Brasil via TMDB
+    const res = await fetch(`https://api.themoviedb.org/3/discover/${tmdbType}?watch_region=BR&with_watch_providers=${providerId}&language=pt-BR&sort_by=popularity.desc&page=1`, {
+      headers: { Authorization: `Bearer ${TMDB_READ_TOKEN}` }
+    });
+    if (!res.ok) return [];
+    const tmdbData = await res.json();
+    const providerTmdbIds = new Set((tmdbData.results || []).map(r => String(r.id)));
+
+    // 2. Cruza com os itens disponíveis no catálogo do Gist correspondente
+    const catalogItems = await window.fetchGistDirect(kind);
+    const matched = [];
+
+    for (const item of catalogItems) {
+      if (item.tmdb_id && providerTmdbIds.has(String(item.tmdb_id))) {
+        matched.push({ ...item, platforms: [platformSlug] });
+      }
+    }
+
+    _platformCache.set(cacheKey, matched);
+    return matched;
+  } catch (err) {
+    console.error('Erro ao cruzar catálogo de streaming:', err);
+    return [];
+  }
+};
 const RESOLVER_API_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJyZXNvbHZlciIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzc5MDk4OTczfQ.WzQBuOqMai96Afleh9g-i7NXo6h-YsjPUbOgxlUqVsU';
 
 const _clientCache = new Map();
@@ -53,9 +99,21 @@ function b64EncodeUnicode(str) {
   }
 }
 
-// Brazuca Resolver client-side
+// Brazuca Resolver client-side (com fallback para proxy Worker)
 async function callBrazucaResolver(paramsStr) {
-  const payload = encodeURIComponent(b64EncodeUnicode(paramsStr));
+  const b64 = b64EncodeUnicode(paramsStr);
+
+  // 1. Tenta via proxy Worker seguro na mesma origem
+  try {
+    const res = await fetch(`/api/cf-resolve?resolver=${encodeURIComponent(b64)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && (data.result || data.success)) return data;
+    }
+  } catch {}
+
+  // 2. Tenta direto nos servidores resolvedores
+  const payload = encodeURIComponent(b64);
   for (const host of RESOLVER_API_HOSTS) {
     try {
       const res = await fetch(`https://${host}/?resolver=${payload}`, {
@@ -94,8 +152,8 @@ function classifyChannel(title = '') {
   return { category: 'Variedades', category_slug: 'variedades' };
 }
 
-// Parser completo de Canais XML
-function parseChannelsGistXml(xmlText = '') {
+// Parser completo de Canais XML com fallback para Pluto TV oficial e TV Pública
+async function parseChannelsGistXml(xmlText = '') {
   const hosts = {};
   for (const m of xmlText.matchAll(/<hostname_(\d+)>([\s\S]*?)<\/hostname_\1>/g)) {
     hosts[m[1]] = b64DecodeUnicode(m[2].trim());
@@ -107,6 +165,36 @@ function parseChannelsGistXml(xmlText = '') {
   _iptvConfig = { hosts, users };
 
   const rawChannels = [];
+
+  // Adiciona canais abertos e Pluto TV oficiais garantidos e testados
+  try {
+    const plutoRes = await fetch('https://api.pluto.tv/v2/channels.json?sid=44319783-8c70-11ef-a9be-cc7de27ba2f5&deviceId=44319783-8c70-4536-a9be-cc7de27ba2f5');
+    if (plutoRes.ok) {
+      const plutoList = await plutoRes.json();
+      for (const ch of plutoList) {
+        rawChannels.push({
+          id: `pluto-${ch._id}`,
+          title: ch.name,
+          name: ch.name,
+          kind: 'canais',
+          __kind: 'canais',
+          category: ch.category || 'Pluto TV',
+          category_slug: 'pluto-tv',
+          poster_path: ch.colorLogoPNG?.path || ch.featuredImage?.path || '',
+          thumbnail: ch.colorLogoPNG?.path || ch.featuredImage?.path || '',
+          streamUrl: `plutotv=${ch._id}`,
+          plutoChannelId: ch._id,
+          servers: [{
+            label: 'Pluto TV (Ao Vivo)',
+            quality: 'HD',
+            server: 1,
+            route: `plutotv=${ch._id}`,
+          }],
+        });
+      }
+    }
+  } catch {}
+
   for (const sectionMatch of xmlText.matchAll(/<channel_(\d+)>([\s\S]*?)<\/channel_\1>/g)) {
     const serverNum = Number(sectionMatch[1]);
     const sectionXml = sectionMatch[2];
@@ -176,7 +264,7 @@ window.fetchGistDirect = async function(category) {
     const rawText = await res.text();
 
     if (category === 'canais') {
-      const channels = parseChannelsGistXml(rawText);
+      const channels = await parseChannelsGistXml(rawText);
       _clientCache.set('canais', channels);
       return channels;
     }
@@ -203,9 +291,12 @@ window.fetchGistDirect = async function(category) {
                    el.querySelector('stream_url')?.textContent?.trim() || '';
       const cat = el.querySelector('category')?.textContent?.trim() || category;
 
+      const tmdbId = el.querySelector('tmdb_id')?.textContent?.trim() || '';
+
       items.push({
         id: `${category}_${idx}`,
         title,
+        tmdb_id: tmdbId,
         poster_path: thumb,
         thumbnail: thumb,
         overview: desc,
@@ -235,6 +326,61 @@ window.resolvePlayClient = async function(kind, id, season = 1, episode = 1) {
 
   // 1. Canais de TV
   if (kind === 'canais') {
+    if (rawRoute.startsWith('plutotv=') || found.plutoChannelId) {
+      const chId = found.plutoChannelId || rawRoute.replace('plutotv=', '');
+      try {
+        const deviceId = '44319783-8c70-4536-a9be-cc7de27ba2f5';
+        const sid = '44319783-8c70-11ef-a9be-cc7de27ba2f5';
+        const now = new Date();
+        const clientTime = now.toISOString();
+        const launchTime = new Date(now.getTime() - 12000).toISOString();
+
+        const bootUrl = new URL('https://boot.pluto.tv/v4/start');
+        const params = {
+          appName: 'web',
+          appVersion: '9.21.0-bf9f5b4369933742859f3b2581c935110922f642',
+          deviceVersion: '148.0.0',
+          deviceModel: 'web',
+          deviceMake: 'edge-chromium',
+          deviceType: 'web',
+          clientID: deviceId,
+          clientModelNumber: '1.0.0',
+          channelID: chId,
+          serverSideAds: 'false',
+          drmCapabilities: 'widevine:L3',
+          blockingMode: '',
+          notificationVersion: '1',
+          appLaunchCount: '5',
+          lastAppLaunchDate: launchTime,
+          clientTime,
+        };
+        for (const [k, v] of Object.entries(params)) bootUrl.searchParams.set(k, v);
+
+        const bootRes = await fetch(bootUrl.toString());
+        if (bootRes.ok) {
+          const bootData = await bootRes.json();
+          const jwt = bootData.sessionToken;
+          if (jwt) {
+            const finalUrl = `https://cfd-v4-service-channel-stitcher-use1-1.prd.pluto.tv/v2/stitch/hls/channel/${chId}/master.m3u8?advertisingId=&appName=web&appVersion=9.21.0-bf9f5b4369933742859f3b2581c935110922f642&app_name=web&clientDeviceType=0&clientID=${deviceId}&clientModelNumber=1.0.0&country=BR&deviceDNT=false&deviceId=${deviceId}&deviceLat=-18.9500&deviceLon=-48.2400&deviceMake=edge-chromium&deviceModel=web&deviceType=web&deviceVersion=148.0.0&marketingRegion=BR&serverSideAds=false&sessionID=${sid}&sid=${sid}&userId=&includeExtendedEvents=true&eventVOD=false&jwt=${encodeURIComponent(jwt)}&masterJWTPassthrough=true`;
+            return {
+              title: found.title,
+              category: found.category || 'Pluto TV',
+              poster: found.poster_path,
+              options: [{
+                server: 'Pluto TV Oficial',
+                label: 'Pluto TV (Ao Vivo)',
+                url: finalUrl,
+                type: 'hls',
+                audio: 'Ao Vivo'
+              }]
+            };
+          }
+        }
+      } catch (err) {
+        console.error('Erro ao gerar stream Pluto:', err);
+      }
+    }
+
     if (rawRoute.startsWith('chresolver1=')) {
       const val = rawRoute.slice('chresolver1='.length);
       if (val.includes('#')) {
