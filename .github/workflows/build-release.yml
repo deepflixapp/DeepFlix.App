@@ -26,13 +26,12 @@ jobs:
       - name: Setup Flutter SDK
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.3'
           channel: 'stable'
           cache: true
 
-      - name: Install Project Dependencies
+      - name: Scaffold Native Project
         run: |
-          flutter create . --project-name deepflix_app --org com.deepflix --platforms=android,windows
+          flutter create . --project-name deepflix_app --org com.deepflix --platforms=android
           flutter pub get
 
       - name: Build Universal Release APK
@@ -44,45 +43,9 @@ jobs:
           name: deepflix-android-universal
           path: build/app/outputs/flutter-apk/app-release.apk
 
-  build-windows:
-    name: Build Windows Desktop (.exe)
-    runs-on: windows-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter SDK
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.24.3'
-          channel: 'stable'
-          cache: true
-
-      - name: Enable Windows Desktop
-        run: flutter config --enable-windows-desktop
-
-      - name: Install Project Dependencies
-        run: |
-          flutter create . --project-name deepflix_app --org com.deepflix --platforms=android,windows
-          flutter pub get
-
-      - name: Build Windows Executable
-        run: flutter build windows --release
-
-      - name: Compress Windows Build
-        shell: pwsh
-        run: |
-          Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath build\deepflix-windows-x64.zip
-
-      - name: Upload Windows Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: deepflix-windows-x64
-          path: build/deepflix-windows-x64.zip
-
   create-release:
     name: Publish GitHub Release with Downloads
-    needs: [build-android, build-windows]
+    needs: [build-android]
     runs-on: ubuntu-latest
     steps:
       - name: Download Android Artifact
@@ -91,29 +54,20 @@ jobs:
           name: deepflix-android-universal
           path: release-assets/
 
-      - name: Download Windows Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: deepflix-windows-x64
-          path: release-assets/
-
-      - name: Rename Files for Friendly Download
+      - name: Rename File for Friendly Download
         run: |
           mv release-assets/app-release.apk release-assets/DEEPFLIX-Android-TV-Mobile.apk
-          mv release-assets/deepflix-windows-x64.zip release-assets/DEEPFLIX-Windows-PC.zip
 
       - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             release-assets/DEEPFLIX-Android-TV-Mobile.apk
-            release-assets/DEEPFLIX-Windows-PC.zip
           name: "DEEPFLIX Release ${{ github.ref_name }}"
           body: |
-            ### 🍿 DEEPFLIX - Aplicativos Oficiais para Download
+            ### 🍿 DEEPFLIX - Aplicativo Oficial para Download
 
-            - **Android (TV Box, Android TV, Celular, Tablet e Dobráveis):** Baixe `DEEPFLIX-Android-TV-Mobile.apk`
-            - **Windows (PC / Notebook):** Baixe e extraia `DEEPFLIX-Windows-PC.zip`
+            - **Android (TV Box, Android TV, Celulares, Tablets e Dobráveis):** Baixe `DEEPFLIX-Android-TV-Mobile.apk`
             - **iOS (iPhone / iPad) e Web:** Acesse direto [https://deepflix.deepflix-app.workers.dev](https://deepflix.deepflix-app.workers.dev)
 
             *100% Gratuito, Sem fins lucrativos, Sem anúncios intrusivos.*
