@@ -21,3 +21,11 @@ windows/flutter/ephemeral/
 .idea/
 .vscode/
 *.iml
+
+
+# Node / Wrangler
+node_modules/
+.wrangler/
+.dev.vars*
+.env*
+!.dev.vars.example
