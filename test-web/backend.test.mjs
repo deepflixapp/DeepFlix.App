@@ -28,6 +28,32 @@ function engine(extra = {}) {
 }
 const api = (backend,path) => backend.api(new Request('https://deepflix.test'+path));
 
+test('a stalled invocation cannot own the catalog I/O awaited by a later invocation',async()=>{
+  const shared={};
+  let rejectStalled;
+  const stalled=createBackend(env,async()=>new Promise((_resolve,reject)=>{rejectStalled=reject;}),shared);
+  const first=stalled.ensureCatalog('filme').catch(()=>{});
+  const independent=createBackend(env,async()=>new Response(movie(1,'Matrix')),shared);
+  let timer;
+  try {
+    const response=await Promise.race([
+      api(independent,'/api/lista?category=filme&page=1'),
+      new Promise((_resolve,reject)=>{timer=setTimeout(()=>reject(new Error('Later invocation waited on stalled request')),250);}),
+    ]);
+    assert.equal((await response.json()).results[0].id,'1');
+    const cached=createBackend(env,async()=>{throw new Error('Completed catalog was fetched again');},shared);
+    assert.equal((await (await api(cached,'/api/lista?category=filme&page=1')).json()).total,1);
+  } finally {clearTimeout(timer);rejectStalled(new Error('Abandoned invocation'));await first;}
+});
+
+test('search with an explicit kind never loads unrelated catalogs or IPTV',async()=>{
+  const {backend,requests}=engine();
+  const response=await (await api(backend,'/api/lista?category=pesquisa&kind=filme&q=Matrix&page=1')).json();
+  assert.equal(response.total,1);
+  assert.equal(requests.length,1);
+  assert.match(requests[0],/page\.xml/);
+});
+
 test('all channels are returned, including non-Pluto after the first 50; filter counters agree',async()=>{
   const {backend}=engine();
   const data=await (await api(backend,'/api/lista?category=canais&limit=1000&page=1')).json();
@@ -71,6 +97,22 @@ test('IPTV tries alternate credentials and only emits HTTPS-origin opaque tokens
   assert(result.options[0].url.startsWith('/api/proxy?token='));
   assert(requests.some(x=>x.includes('one/one'))); assert(requests.some(x=>x.includes('two/two')));
 });
+
+test('43 regional IPTV variants authenticate the server once instead of spending 215 subrequests',async()=>{
+  const requests=[];
+  const xml=`<channels><channel_1><hostname_1>${Buffer.from('https://iptv.provider.net/live/%s/%s.m3u8').toString('base64')}</hostname_1><users_1>${Buffer.from('one/one|two/two|three/three|four/four|five/five').toString('base64')}</users_1>${Array.from({length:43},(_,i)=>`<item><title>[COLOR white]GLOBO SP[/COLOR] [COLOR gold]HD[/COLOR]</title><link>chresolver1=${i+1}#1</link></item>`).join('')}</channel_1></channels>`;
+  const backend=createBackend(env,async target=>{
+    requests.push(String(target));
+    if(String(target).includes('channels.xml'))return new Response(xml);
+    if(String(target).includes('api.pluto.tv'))return Response.json([]);
+    if(String(target).includes('player_api.php'))return Response.json({user_info:{auth:1,status:'Active'}});
+    throw new Error('Unexpected stream probe');
+  });
+  const result=await (await api(backend,'/api/play?kind=canais&id=tv-globo')).json();
+  assert.equal(result.options.length,43);
+  assert.equal(requests.filter(target=>target.includes('player_api.php')).length,1);
+  assert.ok(result.options.every(option=>option.url.startsWith('/api/proxy?token=')));
+});
 test('map and sitemap XML contain normalized real catalog entries',async()=>{
   const {backend}=engine();
   const map=await (await api(backend,'/api/mapa?kind=filme&limit=500&page=1')).json();
@@ -88,6 +130,12 @@ test('opaque proxy detects tampering, expiry, invalid destinations and unsafe re
   for(const target of ['http://127.0.0.1','http://0x7f000001','http://[::1]','http://metadata.google.internal','file:///tmp/test','https://user:password@media.provider.net']) assert.throws(()=>validateTarget(target));
   await assert.rejects(safeFetch('https://media.provider.net',{},async()=>new Response(null,{status:302,headers:{location:'http://127.0.0.1'}})));
 });
+test('media proxy cannot serve an upstream HTML or script document on the application origin',async()=>{
+  const proxy=createMediaProxy(env,async()=>new Response('<script>malicious()</script>',{headers:{'Content-Type':'text/html'}}));
+  const response=await proxy.handle(new Request('https://deepflix.test'+proxy.url('https://media.provider.net/movie.mp4')));
+  assert.equal(response.status,502);assert.match(response.headers.get('content-type'),/json/);assert.ok(!(await response.text()).includes('<script>'));
+});
+
 test('HLS rewrites variants, relative segments, maps, AES keys, audio and subtitles',()=>{
   const proxy=createMediaProxy(env);
   const result=proxy.rewrite('#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI="../key"\n#EXT-X-MAP:URI="init.mp4"\n#EXT-X-MEDIA:TYPE=SUBTITLES,URI="sub/vtt.m3u8"\nvariant.m3u8\n/segment.ts','https://media.provider.net/base/master.m3u8',{});

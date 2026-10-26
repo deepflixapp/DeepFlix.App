@@ -4,3 +4,7 @@ CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id TEXT N
 CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expires_at);
 CREATE TABLE IF NOT EXISTS user_items (user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, collection TEXT NOT NULL, key TEXT NOT NULL, data TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY(user_id,collection,key));
 CREATE TABLE IF NOT EXISTS auth_attempts (key TEXT PRIMARY KEY, count INTEGER NOT NULL, reset_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS catalog_entries (kind TEXT NOT NULL, id TEXT NOT NULL, data TEXT NOT NULL, title_norm TEXT NOT NULL, original_norm TEXT NOT NULL, year TEXT NOT NULL, release_sort TEXT NOT NULL, genres_norm TEXT NOT NULL, source_hash TEXT NOT NULL, PRIMARY KEY(kind,id)) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS catalog_state (kind TEXT PRIMARY KEY, total INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS catalog_config (key TEXT PRIMARY KEY, data TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS catalog_platforms (platform TEXT PRIMARY KEY, data TEXT NOT NULL, updated_at INTEGER NOT NULL, ready INTEGER NOT NULL DEFAULT 0);

@@ -9,7 +9,7 @@ A aplicação web usa `worker/index.mjs` e os arquivos estáticos de `web/`. O a
 3. Execute `npm run db:local` para criar as tabelas no D1 local.
 4. Execute `npm run dev` e acesse `http://127.0.0.1:4174`.
 
-O UUID zero no Wrangler serve apenas para desenvolvimento local. Não é um banco remoto configurado. O nome do ambiente local é `preview`; ele não aponta para o site publicado.
+O ambiente `preview` usa um banco separado de produção. O comando de desenvolvimento usa D1 local; os comandos com `--remote` acessam a Cloudflare.
 
 ## Validação
 
@@ -42,6 +42,22 @@ As tabelas iniciais são aditivas (`CREATE TABLE IF NOT EXISTS`). Alterações f
 - Histórico e favoritos: GET/POST/DELETE em `/api/history` e `/api/favorites`. O servidor é autoritativo após a importação inicial. Cache e fila de escritas são separados por conta. A fila persiste localmente e é repetida em reconexão; alterações inválidas não devem ser tratadas como sincronizadas. Registros antigos identificáveis são convertidos para IDs estáveis durante a importação, e os originais locais são preservados.
 
 ## Operação
+
+O catálogo normalizado fica no D1 para que buscas e ordenação não precisem interpretar todos os XMLs no limite de CPU de uma requisição. Após configurar o schema e os segredos, carregue os dados de cada ambiente:
+
+```powershell
+npm run catalog:preview
+npm run platforms:preview
+node scripts/sync-platforms.mjs --preview --cinema
+# Depois da validação na prévia:
+npm run catalog:production
+npm run platforms:production
+node scripts/sync-platforms.mjs --production --apply-only --cinema
+```
+
+Esses comandos são manutenção manual: não há atualização automática por cron. Reexecute o catálogo quando as listas de origem mudarem e os índices de plataformas quando a disponibilidade mudar. A indexação completa do cinema pode demorar bastante; `--apply-only` reaproveita o SQL validado da prévia em `.wrangler/`. Não versionar esses arquivos, pois o diretório também contém configuração privada. Para atualizar apenas canais após publicar o Worker: `node scripts/sync-catalog.mjs --production --kind=canais`. A lista Pluto é consultada pelo Worker para preservar os canais da região atendida pelo site.
+
+O catálogo indexado não garante que todos os links estejam ativos. Uma origem que recusa acesso precisa ser substituída ou corrigida pelo fornecedor; a aplicação apresenta o erro e permite tentar outra opção.
 
 `/api/health` informa versão e presença dos bindings/segredos, sem revelar valores. Falhas de origem são retornadas como erro de reprodução, não como sucesso. A lista de canais pode ser agrupada por rede, com região/qualidade preservadas nos servidores; portanto o total de canais agrupados pode ser menor que o total de variantes na origem.
 

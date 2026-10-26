@@ -334,30 +334,64 @@ function normalize(payload) {
 window.addEventListener('popstate', () => window.location.reload());
 window.addEventListener('pagehide', () => {
   document.querySelectorAll('video').forEach(video => video.pause());
+  ++playTokens.watch;++playTokens.modal;
+  destroyHls('watch');destroyHls('modal');
+  document.querySelectorAll('#watch-frame-wrap iframe, #player-frame-wrap iframe').forEach(frame=>{frame.src='about:blank';});
 });
+window.addEventListener('pageshow',event=>{if(event.persisted)window.location.reload();});
 
 async function requestJson(url, options = {}) {
-  let response;
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),/^\/api\/(?:play|series)/.test(url)?60000:30000);
   try {
     const headers = { Accept: 'application/json', ...(options.headers || {}) };
+    if(options.accountId)headers['X-Deepflix-Account']=options.accountId;
     if (options.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
-    response = await fetch(url, {
+    const response = await fetch(url, {
       method: options.method || 'GET',
       headers,
       body: options.body ? (typeof options.body === 'string' ? options.body : JSON.stringify(options.body)) : undefined,
       credentials: 'same-origin',
+      signal: options.signal || controller.signal,
     });
-  } catch {
-    throw new Error('Não foi possível conectar ao servidor do DEEPFLIX. Verifique sua conexão e tente novamente.');
-  }
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || `A API respondeu com status ${response.status}.`);
-  return payload;
+    let payload;
+    try{payload=await response.json();}catch{throw Object.assign(new Error(`A API retornou uma resposta inválida (HTTP ${response.status}). Tente novamente.`),{status:response.status});}
+    if(!response.ok)throw Object.assign(new Error(payload.error || `A API respondeu com status ${response.status}.`),{status:response.status});
+    return payload;
+  } catch(error) {
+    if(error.status)throw error;
+    throw new Error(controller.signal.aborted?'A consulta demorou mais que o esperado. Tente novamente.':'Não foi possível conectar ao servidor do DEEPFLIX. Verifique sua conexão e tente novamente.');
+  } finally {clearTimeout(timer);}
 }
 
 // --- Auth, Hybrid History & Hybrid Favorites State Management ---
 const LOCAL_HISTORY_KEY = 'deepflix_local_history_v1';
 const LOCAL_FAVORITES_KEY = 'deepflix_local_favorites_v1';
+const accountSync=new DeepflixAccountSync({storage:localStorage,request:requestJson,onChange:()=>renderAuthUI()});
+let authGeneration=0;
+const refreshingAccounts=new Map();
+function applyAccountCache(cache) {
+  if(!cache)return;
+  state.history=cache.history || [];
+  state.favorites=cache.favorites || [];
+  renderAuthUI();syncFavoriteButtonsState();
+  if(['historico','favoritos'].includes(state.kind))render();
+}
+function queueAccountChange(path,method,body) {
+  if(!state.user)return Promise.resolve();
+  const id=state.user.id;
+  try{return accountSync.enqueue(path,method,body).then(()=>{if(state.user?.id===id){state.syncOffline=false;renderAuthUI();}}).catch(()=>{if(state.user?.id===id){state.syncOffline=true;renderAuthUI();}});}
+  catch {showToast('Não foi possível salvar a alteração neste aparelho. Verifique o espaço disponível.');return Promise.resolve();}
+}
+async function refreshAccountData() {
+  const id=state.user?.id;if(!id)return;
+  if(refreshingAccounts.has(id))return refreshingAccounts.get(id);
+  const task=(async()=>{
+    try {const cache=await accountSync.pull();if(state.user?.id===id){state.syncOffline=false;applyAccountCache(cache);}}
+    catch {if(state.user?.id===id){state.syncOffline=true;renderAuthUI();}}
+  })().finally(()=>{refreshingAccounts.delete(id);});
+  refreshingAccounts.set(id,task);return task;
+}
 
 function loadLocalHistory() {
   try {
@@ -370,7 +404,7 @@ function loadLocalHistory() {
 
 function saveLocalHistory(list) {
   try {
-    localStorage.setItem(LOCAL_HISTORY_KEY, JSON.stringify((list || []).slice(0, 300)));
+    accountSync.save('history',list);
   } catch {}
 }
 
@@ -385,7 +419,7 @@ function loadLocalFavorites() {
 
 function saveLocalFavorites(list) {
   try {
-    localStorage.setItem(LOCAL_FAVORITES_KEY, JSON.stringify((list || []).slice(0, 500)));
+    accountSync.save('favorites',list);
   } catch {}
 }
 
@@ -445,7 +479,8 @@ function renderAuthUI() {
     mobileAccountBtn.classList.toggle('logged-in', Boolean(user));
   }
   if (sidebarStatus) {
-    sidebarStatus.textContent = user ? `Conectado como ${user.name}` : 'Salvo neste aparelho · Entre para sincronizar';
+    const pending=accountSync.pending().length;
+    sidebarStatus.textContent = user ? `${user.name} · ${pending?`${pending} alteração(ões) aguardando sincronização`:state.syncOffline?'Sem conexão · dados salvos neste aparelho':'Sincronizado'}` : 'Salvo neste aparelho · Entre para sincronizar';
   }
   if (topbarBtn) {
     if (user) {
@@ -506,27 +541,22 @@ function openAuthModal(defaultMode = 'login') {
 }
 
 async function initAuthAndHistory() {
-  const localHist = loadLocalHistory();
-  const localFavs = loadLocalFavorites();
-  state.history = localHist;
-  state.favorites = localFavs;
+  const generation=++authGeneration;
+  if(!state.user){state.history=loadLocalHistory();state.favorites=loadLocalFavorites();}
   try {
     const me = await requestJson('/api/auth/me');
+    if(generation!==authGeneration)return;
     state.user = me.user || null;
+    applyAccountCache(accountSync.activate(state.user));
     if (state.user) {
-      const [histRes, favRes] = await Promise.all([
-        requestJson('/api/history?limit=250').catch(() => ({ results: [] })),
-        requestJson('/api/favorites').catch(() => ({ results: [] })),
-      ]);
-      const cloudHist = (Array.isArray(histRes.results) ? histRes.results : []).filter(h => h.kind !== 'canais');
-      const cloudFavs = Array.isArray(favRes.results) ? favRes.results : [];
-      state.history = mergeByKey(cloudHist, localHist);
-      state.favorites = mergeByKey(cloudFavs, localFavs);
-      saveLocalHistory(state.history);
-      saveLocalFavorites(state.favorites);
+      await accountSync.importGuest();
+      await refreshAccountData();
     }
   } catch {
-    state.user = null;
+    if(generation!==authGeneration)return;
+    state.syncOffline=true;
+    if(!state.user)state.user=accountSync.read('deepflix_active_account_v1',null);
+    if(state.user)applyAccountCache(accountSync.activate(state.user));
   }
   renderAuthUI();
   if (state.kind === 'historico' || state.kind === 'favoritos') render();
@@ -536,30 +566,21 @@ async function recordWatchProgress(payload) {
   if (!payload?.itemId || payload.kind === 'canais') return;
   const key = `${payload.kind}:${payload.itemId}`;
   const prev = state.history.find(h => h.key === key) || {};
+  const watched=new Map((prev.watchedEpisodes || []).map(item=>[`${item.season}:${item.episode}`,item]));
+  if(payload.season>0 && payload.episode>0 && payload.duration>0 && payload.currentTime/payload.duration>=0.9)watched.set(`${payload.season}:${payload.episode}`,{season:payload.season,episode:payload.episode});
   const entry = {
     ...prev,
     ...payload,
     key,
     updatedAt: new Date().toISOString(),
+    watchedEpisodes:[...watched.values()].slice(-1000),
   };
   const idx = state.history.findIndex(h => h.key === key);
   if (idx >= 0) state.history.splice(idx, 1);
   state.history.unshift(entry);
   saveLocalHistory(state.history);
   renderAuthUI();
-  if (state.user) {
-    try {
-      const res = await requestJson('/api/history', {
-        method: 'POST',
-        body: payload,
-      });
-      if (res.item) {
-        const cIdx = state.history.findIndex(h => h.key === res.item.key);
-        if (cIdx >= 0) state.history[cIdx] = res.item;
-        saveLocalHistory(state.history);
-      }
-    } catch {}
-  }
+  await queueAccountChange('/api/history','POST',entry);
 }
 
 async function removeHistoryItem(key) {
@@ -569,11 +590,7 @@ async function removeHistoryItem(key) {
   renderAuthUI();
   if (state.kind === 'historico') render();
   showToast('Item removido do histórico.');
-  if (state.user) {
-    try {
-      await requestJson(`/api/history?key=${encodeURIComponent(key)}`, { method: 'DELETE' });
-    } catch {}
-  }
+  await queueAccountChange(`/api/history?key=${encodeURIComponent(key)}`,'DELETE');
 }
 
 async function clearAllHistory() {
@@ -582,11 +599,7 @@ async function clearAllHistory() {
   renderAuthUI();
   if (state.kind === 'historico') render();
   showToast('Todo o histórico foi limpo.');
-  if (state.user) {
-    try {
-      await requestJson('/api/history', { method: 'DELETE' });
-    } catch {}
-  }
+  await queueAccountChange('/api/history','DELETE');
 }
 
 async function toggleFavoriteItem(item, kindHint = 'filme') {
@@ -603,9 +616,7 @@ async function toggleFavoriteItem(item, kindHint = 'filme') {
     if (state.kind === 'favoritos' || state.kind === 'canais') render();
     if (state.watch?.kind === 'canais') renderWatchChannelsDirectory();
     showToast('Removido da Minha Lista.');
-    if (state.user) {
-      requestJson(`/api/favorites?key=${encodeURIComponent(key)}`, { method: 'DELETE' }).catch(() => {});
-    }
+    await queueAccountChange(`/api/favorites?key=${encodeURIComponent(key)}`,'DELETE');
     return false;
   }
   const entry = {
@@ -627,9 +638,7 @@ async function toggleFavoriteItem(item, kindHint = 'filme') {
   if (state.kind === 'favoritos' || state.kind === 'canais') render();
   if (state.watch?.kind === 'canais') renderWatchChannelsDirectory();
   showToast(kind === 'canais' ? '★ Canal adicionado aos Favoritos!' : '★ Adicionado à Minha Lista!');
-  if (state.user) {
-    requestJson('/api/favorites', { method: 'POST', body: entry }).catch(() => {});
-  }
+  await queueAccountChange('/api/favorites','POST',entry);
   return true;
 }
 
@@ -640,9 +649,7 @@ async function clearAllFavorites() {
   syncFavoriteButtonsState();
   if (state.kind === 'favoritos' || state.kind === 'canais') render();
   showToast('Minha Lista foi limpa.');
-  if (state.user) {
-    requestJson('/api/favorites', { method: 'DELETE' }).catch(() => {});
-  }
+  await queueAccountChange('/api/favorites','DELETE');
 }
 
 function syncFavoriteButtonsState() {
@@ -1328,23 +1335,8 @@ async function fetchPage(kind) {
   state.items = [];
   state.canLoadMore = false;
   if (kind === 'historico' || kind === 'favoritos') {
-    if (state.user) {
-      try {
-        if (kind === 'historico') {
-          const hist = await requestJson('/api/history?limit=250');
-          if (current !== state.requestId) return;
-          const cloudHist = (Array.isArray(hist.results) ? hist.results : []).filter(h => h.kind !== 'canais');
-          state.history = mergeByKey(cloudHist, loadLocalHistory());
-          saveLocalHistory(state.history);
-        } else {
-          const favs = await requestJson('/api/favorites');
-          if (current !== state.requestId) return;
-          const cloudFavs = Array.isArray(favs.results) ? favs.results : [];
-          state.favorites = mergeByKey(cloudFavs, loadLocalFavorites());
-          saveLocalFavorites(state.favorites);
-        }
-      } catch {}
-    }
+    if (state.user) await refreshAccountData();
+    if(current!==state.requestId)return;
     render();
     $('#api-notice').hidden = true;
     return;
@@ -1565,14 +1557,7 @@ function openTrailerModal(trailerKey, title = 'Trailer') {
 }
 
 function isEpisodeWatched(savedEntry, seasonNum, epNum) {
-  if (!savedEntry || !savedEntry.season || !savedEntry.episode) return false;
-  const s = Number(seasonNum);
-  const e = Number(epNum);
-  const savedS = Number(savedEntry.season);
-  const savedE = Number(savedEntry.episode);
-  if (s < savedS) return true;
-  if (s === savedS && e < savedE) return true;
-  return false;
+  return Boolean(savedEntry?.watchedEpisodes?.some(item=>Number(item.season)===Number(seasonNum) && Number(item.episode)===Number(epNum)) || (Number(savedEntry?.season)===Number(seasonNum) && Number(savedEntry?.episode)===Number(epNum) && savedEntry.duration>0 && savedEntry.currentTime/savedEntry.duration>=0.9));
 }
 
 function renderEpisodes() {
@@ -1666,7 +1651,7 @@ async function openDetails(item, kind, season = null, episode = null) {
   if (MEDIA_KINDS.has(kind)) {
     const id = idOf(item);
     if (!id) return showToast('Este título não tem um identificador válido.');
-    openMediaPlayer(item, kind, Number($('#season-select')?.value) || 1, 1);
+    openMediaPlayer(item,kind,season,episode);
     return;
   }
   if (kind === 'canais') {
@@ -1744,9 +1729,7 @@ function safePlayVideo(video) {
 function hasNextEpisodeAvailable(target) {
   if (target === 'watch' && state.watch && EPISODIC_KINDS.has(state.watch.kind)) {
     const seasons = (state.watch.data?.seasons || []).filter(s => Number(s.season_number) > 0).sort((a, b) => a.season_number - b.season_number);
-    const idx = seasons.findIndex(s => Number(s.season_number) === state.watch.season);
-    const curS = seasons[idx];
-    return Boolean((curS?.episode_count && state.watch.episode < curS.episode_count) || (idx >= 0 && idx < seasons.length - 1));
+    return Boolean(DeepflixEpisodes.step(seasons,state.watch.season,state.watch.episode,1));
   }
   if (target === 'modal' && state.playback && EPISODIC_KINDS.has(state.playback.kind)) {
     const seasons = (state.episodeData?.seasons || []).filter(s => Number(s.season_number) > 0).sort((a, b) => a.season_number - b.season_number);
@@ -1864,8 +1847,8 @@ function mountOptionInContainer(container, option, target, titleText = 'Player',
         nextPrefetched = true;
         if (hasNextEpisodeAvailable(target)) {
           if (target === 'watch' && state.watch) {
-            const nextEp = state.watch.episode + 1;
-            requestJson(`/api/play?kind=${encodeURIComponent(state.watch.kind)}&id=${encodeURIComponent(state.watch.id)}&season=${state.watch.season}&episode=${nextEp}`).catch(() => {});
+            const next=DeepflixEpisodes.step(state.watch.data?.seasons,state.watch.season,state.watch.episode,1);
+            if(next)requestJson(`/api/play?kind=${encodeURIComponent(state.watch.kind)}&id=${encodeURIComponent(state.watch.id)}&season=${next.season}&episode=${next.episode}`).catch(() => {});
           } else if (target === 'modal' && state.playback) {
             const nextEp = state.playback.episode + 1;
             requestJson(`/api/play?kind=${encodeURIComponent(state.playback.kind)}&id=${encodeURIComponent(idOf(state.playback.item))}&season=${state.playback.season}&episode=${nextEp}`).catch(() => {});
@@ -1970,9 +1953,9 @@ function togglePlayerFullscreen(target = 'watch') {
   if (!wrap) return;
 
   if (document.fullscreenElement || document.webkitFullscreenElement) {
-    (document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen)?.call(document).catch(() => {});
+    Promise.resolve((document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen)?.call(document)).catch(() => {});
   } else {
-    (wrap.requestFullscreen || wrap.webkitRequestFullscreen || wrap.msRequestFullscreen)?.call(wrap).catch(() => {
+    Promise.resolve((wrap.requestFullscreen || wrap.webkitRequestFullscreen || wrap.msRequestFullscreen)?.call(wrap)).catch(() => {
       showToast('Não foi possível ativar tela cheia.');
     });
   }
@@ -2037,7 +2020,7 @@ function renderPlayerOptionsBar(barElement, options, activeIndex, onSelect, cont
   });
 }
 
-async function loadAndPlayTarget({ kind, id, season = 1, episode = 1, target = 'watch', titleText = 'Player', itemMeta = null }) {
+async function loadAndPlayTarget({ kind, id, season = 1, episode = 1, target = 'watch', titleText = 'Player', itemMeta = null,forceRefresh=false }) {
   const token = ++playTokens[target];
   const seriesKey = `${kind}:${id}`;
   if (state.autoNextSeriesKey !== seriesKey) {
@@ -2052,6 +2035,13 @@ async function loadAndPlayTarget({ kind, id, season = 1, episode = 1, target = '
     optionsBar.hidden = true;
     optionsBar.innerHTML = '';
   }
+  const retry=()=>loadAndPlayTarget({kind,id,season,episode,target,titleText,itemMeta,forceRefresh:true});
+  const showFailure=message=>{
+    if(token!==playTokens[target])return;
+    destroyHls(target);
+    container.innerHTML=`<div class="empty-state">${escapeHtml(message)}<p><button class="watch-button" type="button" data-retry-playback>Atualizar links e tentar novamente</button></p></div>`;
+    container.querySelector('[data-retry-playback]')?.addEventListener('click',retry);
+  };
 
   const savedEntry = findHistoryEntry(kind, id);
   const sameEpisodeAsSaved = savedEntry && (
@@ -2066,6 +2056,7 @@ async function loadAndPlayTarget({ kind, id, season = 1, episode = 1, target = '
     season: String(season || 1),
     episode: String(episode || 1),
   });
+  if(forceRefresh)params.set('refresh','1');
   try {
     const payload = await requestJson(`/api/play?${params}`);
     if (token !== playTokens[target]) return;
@@ -2085,7 +2076,7 @@ async function loadAndPlayTarget({ kind, id, season = 1, episode = 1, target = '
     }
     const options = Array.isArray(payload?.options) ? payload.options : [];
     if (!options.length) {
-      container.innerHTML = '<div class="empty-state">Nenhum servidor disponível para este conteúdo no momento.</div>';
+      showFailure('Nenhum servidor disponível para este conteúdo no momento.');
       return;
     }
 
@@ -2099,7 +2090,7 @@ async function loadAndPlayTarget({ kind, id, season = 1, episode = 1, target = '
 
     const buildProgressPayload = (chosenOpt, idx, currentTime = 0, duration = 0) => {
       const watchDetails = target === 'watch' ? state.watch?.data?.details : null;
-      const isCurrentWatchSeason = target === 'watch' && Number(state.watch?.season) === Number(season);
+      const isCurrentWatchSeason = target === 'watch' && Number(state.watch?.data?.season) === Number(season);
       const watchEp = isCurrentWatchSeason ? state.watch?.data?.episodes?.find(e => Number(e.episode_number) === Number(episode)) : null;
       const modalEp = target === 'modal' ? state.episodeData?.episodes?.find(e => Number(e.episode_number) === Number(episode)) : null;
       const epName = watchEp?.name || modalEp?.name || '';
@@ -2130,7 +2121,6 @@ async function loadAndPlayTarget({ kind, id, season = 1, episode = 1, target = '
       const startSec = isInitial ? resumeSeconds : (curVidPos > 3 ? curVidPos : (resumeSeconds || 0));
       const handleFallback = () => {
         if (token !== playTokens[target]) return;
-        if (options.length <= 1) return;
         let nextIdx = options.findIndex((o, idx) => !triedIndices.has(idx) && o.audio === chosen.audio);
         if (nextIdx < 0) nextIdx = options.findIndex((_o, idx) => !triedIndices.has(idx));
         if (nextIdx >= 0) {
@@ -2139,7 +2129,8 @@ async function loadAndPlayTarget({ kind, id, season = 1, episode = 1, target = '
           showToast(`Servidor instável. Alternando automaticamente para ${nextName}…`);
           selectOption(nextIdx, false);
         } else {
-          showToast('Todos os servidores automáticos falharam.');
+          if(!forceRefresh){showToast('Atualizando os links de reprodução…');retry();}
+          else showFailure('Os servidores deste conteúdo não iniciaram a reprodução.');
         }
       };
       mountOptionInContainer(
@@ -2162,14 +2153,14 @@ async function loadAndPlayTarget({ kind, id, season = 1, episode = 1, target = '
     };
     selectOption(preferredIndex, true);
   } catch (error) {
-    container.innerHTML = `<div class="empty-state">Não foi possível abrir o player: ${escapeHtml(error.message)}</div>`;
+    showFailure(`Não foi possível abrir o player: ${error.message}`);
   }
 }
 
-function openMediaPlayer(item, kind, season = 1, episode = 1) {
+function openMediaPlayer(item, kind, season = null, episode = null) {
   const id = idOf(item);
   if (!id) return showToast('Este item não tem um identificador de reprodução.');
-  const suffix = kind === 'filme' ? '' : `/${Math.max(1, Number(season) || 1)}/${Math.max(1, Number(episode) || 1)}`;
+  const suffix = kind === 'filme' || !(Number(season)>0 && Number(episode)>0) ? '' : `/${Math.max(1, Number(season))}/${Math.max(1, Number(episode))}`;
   window.location.assign(`/assistir/${encodeURIComponent(kind)}/${encodeURIComponent(id)}${suffix}`);
 }
 function openChannelPlayer(item) {
@@ -2212,10 +2203,10 @@ function stepEpisode(direction) {
   openMediaPlayer(playback.item, playback.kind, nextSeason, nextEpisode);
   if (nextSeason !== playback.season) loadEpisodes(playback.item, nextSeason, nextEpisode);
 }
-function updateWatchRoute() {
+function updateWatchRoute(replace=false) {
   const watch = state.watch;
   const suffix = watch.kind === 'filme' ? '' : `/${watch.season}/${watch.episode}`;
-  history.pushState({}, '', `/assistir/${watch.kind}/${encodeURIComponent(watch.id)}${suffix}`);
+  history[replace?'replaceState':'pushState']({}, '', `/assistir/${watch.kind}/${encodeURIComponent(watch.id)}${suffix}`);
 }
 function renderWatchInfo() {
   const watch = state.watch;
@@ -2266,8 +2257,8 @@ function renderWatchInfo() {
     const seasons = (watch.data?.seasons || []).filter(entry => Number(entry.season_number) > 0).sort((a, b) => a.season_number - b.season_number);
     const index = seasons.findIndex(entry => Number(entry.season_number) === watch.season);
     const season = seasons[index];
-    $('#watch-previous').disabled = watch.episode <= 1 && index <= 0;
-    $('#watch-next').disabled = !(season?.episode_count && watch.episode < season.episode_count) && !(index >= 0 && index < seasons.length - 1);
+    $('#watch-previous').disabled = !DeepflixEpisodes.step(seasons,watch.season,watch.episode,-1);
+    $('#watch-next').disabled = !DeepflixEpisodes.step(seasons,watch.season,watch.episode,1);
   }
 }
 function renderWatchEpisodes() {
@@ -2292,8 +2283,8 @@ function renderWatchEpisodes() {
       if (!Number.isNaN(dt.getTime())) date = new Intl.DateTimeFormat('pt-BR').format(dt);
     }
     const isCurrent = epNum === watch.episode;
-    const watched = !isCurrent && (epNum < watch.episode || isEpisodeWatched(saved, watch.season, epNum));
-    const watchedBadge = watched ? ' <span class="episode-watched-badge">✓ Assistido</span>' : isCurrent ? ' <span class="episode-watched-badge in-progress">▶ Reproduzindo</span>' : '';
+    const watched = !isCurrent && isEpisodeWatched(saved, watch.season, epNum);
+    const watchedBadge = watched ? ' <span class="episode-watched-badge">✓ Assistido</span>' : isCurrent ? ' <span class="episode-watched-badge in-progress">▶ Selecionado</span>' : '';
     return `<article class="episode-card${watched ? ' watched' : ''}${isCurrent ? ' current' : ''}">
       <div class="episode-still">${still ? `<img loading="lazy" src="${escapeHtml(still)}" alt="">` : '<span>▶</span>'}</div>
       <button class="episode-play" type="button" data-watch-episode="${epNum}" aria-label="Assistir episódio ${epNum}"><span aria-hidden="true">▶</span> Play</button>
@@ -2321,16 +2312,17 @@ async function loadWatchData(season = state.watch.season) {
     renderWatchInfo();
     renderWatchEpisodes();
   } catch (error) {
+    if(watch!==state.watch || reqId!==watch.loadReqId)return;
     $('#watch-episode-status').textContent = error.message;
     $('#watch-episode-list').innerHTML = '<div class="empty-state">Não foi possível carregar os episódios agora.</div>';
-  } finally { watch.loading = false; }
+  } finally { if(reqId===watch.loadReqId)watch.loading = false; }
 }
 async function navigateWatch(season, episode) {
   const watch = state.watch;
   if (!watch) return;
   const oldSeason = watch.season;
   watch.season = Math.max(1, Number(season) || 1);
-  watch.episode = Math.max(1, Number(episode) || 1);
+  watch.episode = episode==null?(DeepflixEpisodes.first(watch.data?.seasons,watch.season)?.episode || 1):Math.max(1, Number(episode) || 1);
   updateWatchRoute();
   loadAndPlayTarget({
     kind: watch.kind,
@@ -2348,19 +2340,9 @@ async function navigateWatch(season, episode) {
 }
 function stepWatchEpisode(direction) {
   const watch = state.watch;
-  const seasons = (watch?.data?.seasons || []).filter(entry => Number(entry.season_number) > 0).sort((a, b) => a.season_number - b.season_number);
-  const index = seasons.findIndex(entry => Number(entry.season_number) === watch?.season);
-  const currentSeason = seasons[index];
-  let season = watch.season;
-  let episode = watch.episode + direction;
-  if (episode < 1 && index > 0) {
-    season = Number(seasons[index - 1].season_number);
-    episode = Number(seasons[index - 1].episode_count) || 1;
-  } else if (currentSeason?.episode_count && episode > currentSeason.episode_count && index >= 0 && index < seasons.length - 1) {
-    season = Number(seasons[index + 1].season_number);
-    episode = 1;
-  }
-  if (season !== watch.season || episode !== watch.episode) navigateWatch(season, episode);
+  if(!watch)return;
+  const next=DeepflixEpisodes.step(watch.data?.seasons,watch.season,watch.episode,direction);
+  if(next)navigateWatch(next.season,next.episode);
 }
 
 function renderWatchChannelZapping(currentTitle = '') {
@@ -2457,16 +2439,16 @@ async function initializeWatchPage() {
   }
 
   await initAuthAndHistory();
+  let saved=findHistoryEntry(watch.kind,watch.id);
   if (!watch.explicitRouteEpisode && EPISODIC_KINDS.has(watch.kind)) {
-    const saved = findHistoryEntry(watch.kind, watch.id);
     if (saved?.season && saved?.episode) {
       watch.season = Number(saved.season) || 1;
       watch.episode = Number(saved.episode) || 1;
-      updateWatchRoute();
+      updateWatchRoute(true);
     }
   }
 
-  loadAndPlayTarget({
+  const startPlayback=()=>loadAndPlayTarget({
     kind: watch.kind,
     id: watch.id,
     season: watch.season,
@@ -2475,6 +2457,7 @@ async function initializeWatchPage() {
     titleText: `Player de ${watch.kind === 'filme' ? 'filme' : 'episódio'}`,
   });
   if (watch.kind === 'canais') {
+    startPlayback();
     if ($('#watch-actions-row')) $('#watch-actions-row').hidden = true;
     $('#watch-title').textContent = 'Carregando canal…';
     $('#watch-overview').textContent = 'Transmissão ao vivo. Escolha um servidor acima ou troque de canal na lista abaixo.';
@@ -2491,8 +2474,17 @@ async function initializeWatchPage() {
       ? `/api/movie/${encodeURIComponent(watch.id)}`
       : `/api/series/${encodeURIComponent(watch.id)}?season=${watch.season}&kind=${encodeURIComponent(watch.kind)}`;
     watch.data = await requestJson(endpoint);
+    if(watch.data.id && String(watch.data.id)!==watch.id){watch.id=String(watch.data.id);saved ||= findHistoryEntry(watch.kind,watch.id);}
     if (watch.kind !== 'filme') {
       watch.season = Number(watch.data.season) || watch.season;
+      if(!watch.explicitRouteEpisode) {
+        const desired=saved?.season && saved?.episode?{season:Number(saved.season),episode:Number(saved.episode)}:DeepflixEpisodes.first(watch.data.seasons,watch.season) || DeepflixEpisodes.first(watch.data.seasons);
+        if(desired){
+          watch.season=desired.season;watch.episode=desired.episode;
+          if(Number(watch.data.season)!==watch.season)watch.data=await requestJson(`/api/series/${encodeURIComponent(watch.id)}?season=${watch.season}&kind=${encodeURIComponent(watch.kind)}`);
+        }
+      }
+      updateWatchRoute(true);
       const seasons = (watch.data.seasons || []).filter(entry => Number(entry.season_number) > 0);
       $('#watch-season-select').innerHTML = seasons.map(entry => `<option value="${Number(entry.season_number)}">${escapeHtml(entry.name)}${entry.air_date ? ` (${escapeHtml(entry.air_date.slice(0, 4))})` : ''}</option>`).join('');
       $('#watch-season-select').value = String(watch.season);
@@ -2502,8 +2494,9 @@ async function initializeWatchPage() {
     renderWatchInfo();
   } catch (error) {
     $('#watch-title').textContent = `Título ${watch.id}`;
-    $('#watch-overview').textContent = `O player abriu, mas as informações não puderam ser carregadas. ${error.message}`;
+    $('#watch-overview').textContent = `As informações não puderam ser carregadas. ${error.message}`;
   }
+  startPlayback();
 }
 
 async function reloadCurrentPage() {
@@ -2683,19 +2676,11 @@ $('#auth-form')?.addEventListener('submit', async event => {
       password: $('#auth-password-input').value,
     };
     const res = await requestJson(endpoint, { method: 'POST', body: payload });
+    ++authGeneration;
     state.user = res.user;
-    const cloudHist = (Array.isArray(res.history) ? res.history : []).filter(h => h.kind !== 'canais');
-    const cloudFavs = Array.isArray(res.favorites) ? res.favorites : [];
-    state.history = mergeByKey(cloudHist, state.history);
-    state.favorites = mergeByKey(cloudFavs, state.favorites);
-    saveLocalHistory(state.history);
-    saveLocalFavorites(state.favorites);
-    // Envia os favoritos locais que ainda não existiam na nuvem
-    for (const f of state.favorites) {
-      if (!cloudFavs.some(cf => cf.key === f.key)) {
-        requestJson('/api/favorites', { method: 'POST', body: f }).catch(() => {});
-      }
-    }
+    applyAccountCache(accountSync.activate(state.user));
+    await accountSync.importGuest();
+    await refreshAccountData();
     $('#auth-form').reset();
     $('#auth-dialog').close();
     renderAuthUI();
@@ -2710,14 +2695,17 @@ $('#auth-form')?.addEventListener('submit', async event => {
 });
 $('#auth-logout-btn')?.addEventListener('click', async () => {
   try {
-    await requestJson('/api/auth/logout', { method: 'POST' });
-  } catch {}
+    await accountSync.flush().catch(()=>{});
+    await requestJson('/api/auth/logout', { method: 'POST',accountId:state.user?.id });
+  } catch(error) {showToast(error.message);return;}
+  ++authGeneration;
   state.user = null;
-  // Mantém histórico e favoritos salvos no aparelho conforme decisão de persistência local
+  state.syncOffline=false;
+  applyAccountCache(accountSync.activate(null));
   $('#auth-dialog').close();
   renderAuthUI();
   if (state.kind === 'historico' || state.kind === 'favoritos') render();
-  showToast('Você saiu da sua conta. Seus dados continuam salvos neste aparelho.');
+  showToast('Você saiu da conta. Os dados de visitante foram restaurados.');
 });
 $('#clear-all-history')?.addEventListener('click', () => {
   if (window.confirm('Tem certeza que deseja limpar todo o seu histórico de reprodução?')) {
@@ -3109,7 +3097,7 @@ document.addEventListener('keydown', event => {
   const activeVideo = document.querySelector('.player-frame-wrap video') || document.querySelector('video');
 
   if (event.key === ' ' || event.code === 'Space') {
-    if (event.target && event.target.closest('button, a, input, textarea, select')) return;
+    if (event.target && event.target.closest('button, a, input, textarea, select, video')) return;
     if (activeVideo) {
       event.preventDefault();
       if (activeVideo.paused) safePlayVideo(activeVideo);
@@ -3179,7 +3167,7 @@ $('#episode-reverse')?.addEventListener('change', renderEpisodes);
 $('#watch-previous')?.addEventListener('click', () => stepWatchEpisode(-1));
 $('#watch-next')?.addEventListener('click', () => stepWatchEpisode(1));
 $('#watch-show-list')?.addEventListener('click', () => $('#watch-episodes')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
-$('#watch-season-select')?.addEventListener('change', () => navigateWatch(Number($('#watch-season-select')?.value), 1));
+$('#watch-season-select')?.addEventListener('change', () => navigateWatch(Number($('#watch-season-select')?.value),null));
 $('#watch-episode-jump')?.addEventListener('change', () => navigateWatch(state.watch?.season, Number($('#watch-episode-jump')?.value)));
 $('#watch-episode-reverse')?.addEventListener('change', renderWatchEpisodes);
 $('#close-detail')?.addEventListener('click', () => $('#detail-dialog')?.close());
@@ -3208,7 +3196,10 @@ $('#player-dialog')?.addEventListener('click', event => {
     state.playback = null;
   }
 });
-for (let year = new Date().getFullYear(); year >= 1950; year--) $('#year-filter')?.insertAdjacentHTML('beforeend', `<option value="${year}">${year}</option>`);
+for (const selector of ['#year-filter', '#category-year-select']) {
+  const select = $(selector);
+  for (let year = new Date().getFullYear() + 1; year >= 1900; year--) select?.insertAdjacentHTML('beforeend', `<option value="${year}">${year}</option>`);
+}
 
 window.applyKindRoute = function(targetKind) {
   state.kind = targetKind;
@@ -3266,3 +3257,13 @@ if (watchRouteMatch) {
     }
   });
 }
+
+window.addEventListener('online',()=>{if(state.user)refreshAccountData();});
+window.addEventListener('focus',()=>{if(state.user)initAuthAndHistory();});
+window.addEventListener('storage',event=>{
+  if(event.key==='deepflix_active_account_v1'){initAuthAndHistory();return;}
+  if(!state.user)return;
+  if(event.key===accountSync.cacheKey())applyAccountCache(accountSync.cache());
+  else if(event.key===accountSync.queueKey())refreshAccountData();
+});
+setInterval(()=>{if(state.user && document.visibilityState==='visible')refreshAccountData();},30000);

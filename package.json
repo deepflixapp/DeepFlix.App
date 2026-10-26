@@ -5,9 +5,13 @@
   "scripts": {
     "dev": "wrangler dev --env preview --port 4174",
     "test": "node --test test-web/*.test.mjs",
-    "check": "node --check web/app.js && node --check worker/index.mjs && node --check worker/backend.mjs && node --check worker/auth.mjs && node --check worker/proxy.mjs",
+    "check": "node --check web/app.js && node --check web/account-sync.js && node --check web/episode-navigation.js && node --check worker/index.mjs && node --check worker/backend.mjs && node --check worker/catalog.mjs && node --check worker/auth.mjs && node --check worker/proxy.mjs",
     "build": "wrangler deploy --env preview --dry-run --outdir build/worker",
     "db:local": "wrangler d1 execute DB --env preview --local --file worker/schema.sql",
+    "catalog:preview": "node scripts/sync-catalog.mjs --preview",
+    "catalog:production": "node scripts/sync-catalog.mjs --production",
+    "platforms:preview": "node scripts/sync-platforms.mjs --preview",
+    "platforms:production": "node scripts/sync-platforms.mjs --production",
     "deploy:preview": "node scripts/deploy.mjs --preview",
     "deploy:production": "node scripts/deploy.mjs"
   },

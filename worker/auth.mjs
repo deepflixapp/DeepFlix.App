@@ -18,6 +18,7 @@ export function validateEntry(body, collection) {
   const entry = { kind:body.kind, itemId:body.itemId, key:`${body.kind}:${body.itemId}`, updatedAt:new Date().toISOString() };
   for (const field of ['title','poster','backdrop','year','episodeTitle','serverLabel','audio','category']) if (body[field] != null) entry[field] = String(body[field]).slice(0, ['poster','backdrop'].includes(field) ? 2000 : 200);
   for (const field of ['season','episode','optionIndex','currentTime','duration','vote_average']) if (body[field] != null) entry[field] = Math.max(0, Math.min(10000000, Number(body[field]) || 0));
+  if(collection==='history' && Array.isArray(body.watchedEpisodes))entry.watchedEpisodes=body.watchedEpisodes.filter(item=>Number.isInteger(item?.season) && item.season>0 && Number.isInteger(item?.episode) && item.episode>0).slice(-1000).map(item=>({season:item.season,episode:item.episode}));
   return entry;
 }
 
@@ -38,6 +39,8 @@ export async function handleAuth(request, env, migrateEntries = async entries =>
     const user = token ? await db.prepare('SELECT u.* FROM users u JOIN sessions s ON s.user_id=u.id WHERE s.token_hash=? AND s.expires_at>?').bind(hashToken(token), Date.now()).first() : null;
     const path = url.pathname;
     if (path === '/api/auth/me' && request.method === 'GET') return json({ user:user ? publicUser(user) : null });
+    const expectedAccount=request.headers.get('X-Deepflix-Account');
+    if(expectedAccount && (!user || user.id!==expectedAccount))return json({error:'A conta ativa mudou. Atualize a página para sincronizar.'},409);
     if (path === '/api/auth/logout' && request.method === 'POST') {
       if (token) await db.prepare('DELETE FROM sessions WHERE token_hash=?').bind(hashToken(token)).run();
       return json({ok:true},200,{'Set-Cookie':cookie('',0)});
@@ -83,10 +86,8 @@ export async function handleAuth(request, env, migrateEntries = async entries =>
         if (entries != null && !Array.isArray(entries)) fail('Lista inválida.');
         const migrated = await migrateEntries((entries || []).slice(0,collection === 'history' ? 300 : 500));
         unmatched += migrated.filter(item => !item).length;
-        for (const item of migrated.filter(Boolean)) {
-          const entry = validateEntry(item,collection);
-          statements.push(db.prepare('INSERT OR IGNORE INTO user_items(user_id,collection,key,data,updated_at) SELECT ?,?,?,?,? WHERE (SELECT imported FROM users WHERE id=?)=0').bind(user.id,collection,entry.key,JSON.stringify(entry),Date.now(),user.id));
-        }
+        const normalized=migrated.filter(Boolean).map(item=>validateEntry(item,collection));
+        if(normalized.length)statements.push(db.prepare("INSERT OR IGNORE INTO user_items(user_id,collection,key,data,updated_at) SELECT ?,?,json_extract(value,'$.key'),value,? FROM json_each(?) WHERE (SELECT imported FROM users WHERE id=?)=0").bind(user.id,collection,Date.now(),JSON.stringify(normalized),user.id));
       }
       statements.push(db.prepare('UPDATE users SET imported=1 WHERE id=?').bind(user.id));
       await db.batch(statements);

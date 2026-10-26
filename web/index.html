@@ -17,7 +17,9 @@
     <link rel="stylesheet" href="/styles.css?v=20261023-v1" />
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js"></script>
     <script src="/client-adapter.js"></script>
-    <script src="/app.js?v=20261025-v6" defer></script>
+    <script src="/account-sync.js?v=20261025-v9" defer></script>
+    <script src="/episode-navigation.js?v=20261025-v9" defer></script>
+    <script src="/app.js?v=20261025-v9" defer></script>
     <script src="/tv.js?v=20261023-v1" defer></script>
   </head>
   <body>
@@ -526,8 +528,8 @@
               <input id="auth-name-input" type="text" placeholder="Ex: Lucas" autocomplete="name" />
             </label>
             <label class="auth-field">
-              <span>E-mail</span>
-              <input id="auth-username-input" type="email" placeholder="seu@email.com" autocomplete="username" required />
+              <span>Usuário</span>
+              <input id="auth-username-input" type="text" placeholder="seu_usuario" autocomplete="username" minlength="3" maxlength="32" pattern="[A-Za-z0-9_.-]{3,32}" title="Use de 3 a 32 letras, números, pontos, hífens ou sublinhados." required />
             </label>
             <label class="auth-field">
               <span>Senha</span>

@@ -12,8 +12,8 @@ before(async()=>{
   await db.exec((await readFile('worker/schema.sql','utf8')).replace(/\n/g,' '));
 });
 after(async()=>{await mf?.dispose();});
-const call = async(path,body,session,method=body?'POST':'GET',origin='https://deepflix.test')=>{
-  const headers={Origin:origin,'CF-Connecting-IP':'192.0.2.1'};
+const call = async(path,body,session,method=body?'POST':'GET',origin='https://deepflix.test',ip='192.0.2.1')=>{
+  const headers={Origin:origin,'CF-Connecting-IP':ip};
   if(session) headers.Cookie=session;
   if(body) headers['Content-Type']='application/json';
   return mf.dispatchFetch('https://deepflix.test'+path,{method,headers,body:body?JSON.stringify(body):undefined});
@@ -58,4 +58,19 @@ test('login attempts are rate limited in persistent D1, not isolate memory',asyn
     const response=await call('/api/auth/login',{username:'unknown-user',password:'WrongPassword123'});
     if(i===10) assert.equal(response.status,429);
   }
+});
+
+test('bulk local import preserves hundreds of entries and stale account headers cannot write to another session',async()=>{
+  const invoke=(path,body,session,method=body?'POST':'GET')=>call(path,body,session,method,'https://deepflix.test','192.0.2.2');
+  const register=await invoke('/api/auth/register',{username:'bulk-import',password:'SenhaDeTeste123'});
+  assert.equal(register.status,200);const session=register.headers.get('set-cookie').split(';')[0];
+  const entries=Array.from({length:400},(_,index)=>({...entry,itemId:String(index+1),title:`Item ${index+1}`}));
+  assert.equal((await invoke('/api/auth/import',{history:entries,favorites:entries},session)).status,200);
+  assert.equal((await (await invoke('/api/history',null,session)).json()).results.length,300);
+  assert.equal((await (await invoke('/api/favorites',null,session)).json()).results.length,400);
+  const response=await mf.dispatchFetch('https://deepflix.test/api/favorites',{method:'POST',headers:{Origin:'https://deepflix.test',Cookie:session,'Content-Type':'application/json','X-Deepflix-Account':'another-account'},body:JSON.stringify(entry)});
+  assert.equal(response.status,409);
+  await invoke('/api/favorites',null,session,'DELETE');
+  await invoke('/api/auth/import',{history:entries,favorites:entries},session);
+  assert.equal((await (await invoke('/api/favorites',null,session)).json()).results.length,0);
 });

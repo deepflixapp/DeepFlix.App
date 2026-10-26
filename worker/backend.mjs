@@ -3,7 +3,9 @@
 import crypto from 'node:crypto';
 import { Buffer } from 'node:buffer';
 import { createMediaProxy, safeFetch } from './proxy.mjs';
-export function createBackend(env, fetcher = fetch) {
+import { catalogDatabase, CATALOG_KINDS } from './catalog.mjs';
+export function createBackend(env, fetcher = fetch, sharedData = {}) {
+const catalogDb = catalogDatabase(env.DB);
 const TMDB_API_KEY = env.TMDB_API_KEY || '';
 const TMDB_READ_TOKEN = env.TMDB_READ_TOKEN || '';
 const RESOLVER_API_TOKEN = env.BRAZUCA_RESOLVER_TOKEN || '';
@@ -101,11 +103,13 @@ const CATEGORY_NORM = {
 };
 
 
-const httpCache = new Map();
-const tmdbCache = new Map();
-const providerTmdbSets = new Map();
-const seriesProviderCache = new Map();
-const providerDiagnostics = new Map();
+// Only completed data crosses invocations. In-flight promises and their I/O
+// belong to the current invocation and must not be awaited by another request.
+const httpCache = sharedData.httpCache ||= new Map();
+const tmdbCache = sharedData.tmdbCache ||= new Map();
+const providerTmdbSets = sharedData.providerTmdbSets ||= new Map();
+const seriesProviderCache = sharedData.seriesProviderCache ||= new Map();
+const providerDiagnostics = sharedData.providerDiagnostics ||= new Map();
 function providerDiagnostic(route, error) {
   const message = String(error?.message || '');
   const status = Number(message.match(/HTTP (\d{3})/)?.[1]) || null;
@@ -116,8 +120,63 @@ function providerDiagnostic(route, error) {
   }
   return { provider:String(route || '').split('=')[0], code:status ? `UPSTREAM_HTTP_${status}` : error?.name === 'SyntaxError' ? 'UPSTREAM_FORMAT_CHANGED' : /timeout|abort/i.test(message) ? 'UPSTREAM_TIMEOUT' : error ? 'UPSTREAM_REQUEST_FAILED' : 'NO_EPISODES_OR_OPTIONS', ...(status ? {status} : {}), ...(error ? {errorType:error.name || 'Error'} : {}), ...(transport ? {transport} : {}), ...(/^[A-Z_0-9]{2,60}$/.test(cause) ? {cause} : {}) };
 }
-const iptvVerifiedAccounts = new Map();
-const playResolutionCache = new Map();
+const iptvVerifiedAccounts = sharedData.iptvVerifiedAccounts ||= new Map();
+const playResolutionCache = sharedData.playResolutionCache ||= new Map();
+let iptvActive=0;
+const iptvQueue=[];
+const iptvServerChecks=new Map();
+async function withIptvSlot(task) {
+  if(iptvActive>=4)await new Promise(resolve=>iptvQueue.push(resolve));
+  else iptvActive++;
+  try{return await task();}finally{const next=iptvQueue.shift();if(next)next();else iptvActive--;}
+}
+async function mediaPrefix(response,limit=32) {
+  const reader=response.body?.getReader();let text='';
+  try{while(text.length<limit){const part=await reader?.read();if(!part || part.done)break;text+=new TextDecoder().decode(part.value);}}
+  finally{await reader?.cancel();}
+  return text;
+}
+async function verifiedIptvServer(serverId,channelCode,refresh) {
+  const cached=iptvVerifiedAccounts.get(serverId);
+  if(!refresh && cached?.expiresAt>Date.now())return cached;
+  if(iptvServerChecks.has(serverId))return iptvServerChecks.get(serverId);
+  const task=(async()=>{
+    const template=store.iptvConfig.hosts[serverId],accounts=store.iptvConfig.users[serverId] || [];
+    if(!template || !accounts.length)return {diagnostics:[{provider:'iptv',code:'IPTV_CONFIG_MISSING'}]};
+    const templates=template.startsWith('http:')?[template.replace(/^http:/,'https:'),template]:[template];
+    const diagnostics=[];
+    const add=diagnostic=>diagnostics.push({...diagnostic,provider:'iptv'});
+    for(const account of accounts)for(const candidate of templates) {
+      const streamUrl=candidate.replace('%s',account).replace('%s',channelCode);
+      let rejected=false;
+      try {
+        const [username,password]=account.split('/');
+        const api=new URL('/player_api.php',streamUrl);api.searchParams.set('username',username);api.searchParams.set('password',password);
+        const response=await withIptvSlot(()=>fetchWithDnsFallback(api,{headers:{'User-Agent':'XC-IPTV'},signal:AbortSignal.timeout(3500)}));
+        if(response.ok){
+          const text=await response.text();let info;try{info=JSON.parse(text).user_info;}catch{}
+          if(info && String(info.auth)==='1' && !/expired|disabled|banned/i.test(String(info.status || ''))) {
+            const valid={account,template:candidate,expiresAt:Date.now()+300000};iptvVerifiedAccounts.set(serverId,valid);return valid;
+          }
+          if(info && String(info.auth)==='0'){add({code:'IPTV_CREDENTIALS_REJECTED'});rejected=true;}
+        }else{add({code:`UPSTREAM_HTTP_${response.status}`,status:response.status});await response.body?.cancel();}
+      }catch(error){add(providerDiagnostic('iptv',error));}
+      if(rejected)continue;
+      // Some providers do not expose player_api.php. Verify one representative
+      // stream, rather than multiplying every account by every regional quality.
+      try {
+        const response=await withIptvSlot(()=>fetchWithDnsFallback(streamUrl,{headers:{'User-Agent':'XC-IPTV'},signal:AbortSignal.timeout(3500)}));
+        if(!response.ok){add({code:`UPSTREAM_HTTP_${response.status}`,status:response.status});await response.body?.cancel();continue;}
+        if((await mediaPrefix(response)).trimStart().startsWith('#EXTM3U')){
+          const valid={account,template:candidate,expiresAt:Date.now()+300000};iptvVerifiedAccounts.set(serverId,valid);return valid;
+        }
+        add({code:'UPSTREAM_NOT_HLS'});
+      }catch(error){add(providerDiagnostic('iptv',error));}
+    }
+    return {diagnostics:[...new Map(diagnostics.map(item=>[item.code,item])).values()]};
+  })();
+  iptvServerChecks.set(serverId,task);return task;
+}
 
 function setPlayResolutionCache(cacheKey, payload, ttlMs) {
   if (!payload || !Array.isArray(payload.options) || !payload.options.length) return;
@@ -139,7 +198,7 @@ function setPlayResolutionCache(cacheKey, payload, ttlMs) {
   playResolutionCache.set(cacheKey, { payload, expiresAt: now + ttlMs });
 }
 
-const store = {
+const store = sharedData.store ||= {
   source: 'local-snapshot',
   updatedAt: '',
   catalog: { filme: [], serie: [], anime: [], dorama: [], desenho: [], novela: [] },
@@ -148,6 +207,45 @@ const store = {
   channels: [],
   iptvConfig: { hosts: {}, users: {} },
 };
+
+async function resolveCatalogEntry(kind,id,title='') {
+  if (await catalogDb.ready([kind])) {
+    const item=await catalogDb.find(kind,id,title);
+    if (item) {
+      store.byKindAndId.set(`${kind}:${id}`,item);
+      store.byKindAndId.set(`${kind}:${item.id}`,item);
+      if (item.tmdb_id) store.byTmdb.set(`${kind==='filme'?'movie':'tv'}:${item.tmdb_id}`,[item]);
+    }
+    return item;
+  }
+  await ensureCatalog(kind);
+  return store.byKindAndId.get(`${kind}:${id}`) || null;
+}
+async function migrateCatalogEntries(entries) {
+  const legacy=entry=>/^(filme|serie|anime|dorama|desenho|novela)_\d+$/.test(entry?.itemId || '');
+  const candidates=entries.filter(entry=>legacy(entry) || entry?.kind==='canais');
+  if(!candidates.length)return entries;
+  const kinds=[...new Set(candidates.map(entry=>entry.kind))];
+  let items;
+  if(await catalogDb.ready(kinds))items=await catalogDb.findMany(candidates);
+  else {
+    for(const kind of kinds)await ensureCatalog(kind);
+    items=[...new Set(store.byKindAndId.values())];
+  }
+  const clean=value=>normalizeText(value).replace(/[^a-z0-9]/g,'');
+  const byId=new Map(),byTitle=new Map();
+  for(const item of items){
+    byId.set(`${item.kind}:${item.id}`,item);
+    for(const alias of item.aliases || [])byId.set(`${item.kind}:${alias}`,item);
+    byTitle.set(`${item.kind}:${clean(item.title || item.name)}`,item);
+  }
+  return entries.map(entry=>{
+    let item=byId.get(`${entry?.kind}:${entry?.itemId}`);
+    if(legacy(entry) && (!item || clean(item.title)!==clean(entry.title)))item=byTitle.get(`${entry.kind}:${clean(entry.title)}`);
+    if(legacy(entry) && !item)return null;
+    return item?{...entry,itemId:item.id,key:`${entry.kind}:${item.id}`} : entry;
+  });
+}
 
 function cleanXmlText(value = '') {
   return String(value || '')
@@ -621,6 +719,7 @@ async function getProviderCatalogItemsUnlocked(platformSlug, kind, limit = 24) {
   const providerId = PLATFORM_PROVIDER_IDS[platformSlug];
   if (!providerId) return [];
   const list = store.catalog[kind] || [];
+  const persisted=await catalogDb.ready([kind]);
   if (!TMDB_API_KEY && !TMDB_READ_TOKEN) {
     throw new Error('TMDB não configurado para consultar plataformas.');
   }
@@ -667,13 +766,14 @@ async function getProviderCatalogItemsUnlocked(platformSlug, kind, limit = 24) {
       throw new Error('A plataforma não respondeu por completo. Tente novamente.');
     }
   }
-  return matched;
+  return persisted ? (await catalogDb.byTmdb([...entry.ids],[kind])).map(item=>({...item,platforms:[platformSlug]})) : matched;
 }
 
 let cinemaTmdbEntry = null;
 
 async function getCinemaCatalogItems(limit = 50) {
   const list = store.catalog.filme || [];
+  const persisted=await catalogDb.ready(['filme']);
   if (!TMDB_API_KEY && !TMDB_READ_TOKEN) {
     return list.filter(item => !(item.genres || []).some(g => normalizeText(g) === 'cinema tv'));
   }
@@ -728,7 +828,7 @@ async function getCinemaCatalogItems(limit = 50) {
   if (matched.length === 0) {
     return list.filter(item => !(item.genres || []).some(g => normalizeText(g) === 'cinema tv'));
   }
-  return matched;
+  return persisted ? catalogDb.byTmdb([...cinemaTmdbEntry.ids],['filme']) : matched;
 }
 
 async function getActorCatalogMatches(actorQuery, allowedKinds = null) {
@@ -753,6 +853,17 @@ async function getActorCatalogMatches(actorQuery, allowedKinds = null) {
     candidates.map(person => getTmdb(`/person/${person.id}/combined_credits?language=pt-BR`))
   );
 
+  const dbIndex=new Map();
+  const persisted=await catalogDb.ready(allowedKinds || CATALOG_KINDS);
+  if(persisted) {
+    const ids=[...new Set(creditsList.filter(result=>result.status==='fulfilled').flatMap(result=>[...(result.value?.cast || []),...(result.value?.crew || [])]).map(credit=>String(credit.id)))];
+    for(const item of await catalogDb.byTmdb(ids,allowedKinds || CATALOG_KINDS)) {
+      const key=`${item.kind==='filme'?'movie':'tv'}:${item.tmdb_id}`;
+      if(!dbIndex.has(key))dbIndex.set(key,[]);
+      dbIndex.get(key).push(item);
+    }
+  }
+
   const matched = [];
   const seenKeys = new Set();
   const kindFilterSet = allowedKinds ? new Set(allowedKinds) : null;
@@ -763,7 +874,7 @@ async function getActorCatalogMatches(actorQuery, allowedKinds = null) {
     for (const credit of allCredits) {
       if (!credit?.id) continue;
       const tmdbType = credit.media_type === 'tv' ? 'tv' : 'movie';
-      const catalogItems = store.byTmdb.get(`${tmdbType}:${credit.id}`) || [];
+      const catalogItems = (persisted?dbIndex:store.byTmdb).get(`${tmdbType}:${credit.id}`) || [];
       for (const item of catalogItems) {
         if (kindFilterSet && !kindFilterSet.has(item.kind)) continue;
         const uniqueKey = `${item.kind}:${item.id}`;
@@ -1274,17 +1385,10 @@ async function resolveSingleRoutePlay(route, audioFallback = 'Dublado', bypassCa
   // IPTV credentials and upstream checks stay on the Worker.
   if (cleanRoute.startsWith('chresolver1=')) {
     const [channelCode, serverId] = cleanRoute.slice(12).split('#');
-    const template = store.iptvConfig.hosts[serverId];
-    const accounts = store.iptvConfig.users[serverId] || [];
-    if (!template || !channelCode) return [];
-    const results = await Promise.allSettled(accounts.map(async account => {
-      const url = template.replace('%s', account).replace('%s', channelCode);
-      const response = await fetchWithDnsFallback(url, { headers: { 'User-Agent': 'XC-IPTV' }, signal: AbortSignal.timeout(5000) });
-      if (!response.ok) { await response.body?.cancel(); return null; }
-      const text = await response.text();
-      return text.trimStart().startsWith('#EXTM3U') ? { kind: 'hls', audio: 'Ao Vivo', server: `IPTV ${serverId}`, url: buildProxiedUrl(url, { 'User-Agent': 'XC-IPTV' }) } : null;
-    }));
-    return results.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value);
+    const result=await verifiedIptvServer(serverId,channelCode,bypassCache);
+    if(!result.account){providerDiagnostics.set(cleanRoute,result.diagnostics || [{provider:'iptv',code:'IPTV_CONFIG_MISSING'}]);return [];}
+    const url=result.template.replace('%s',result.account).replace('%s',channelCode);
+    return [{kind:'hls',audio:'Ao Vivo',server:`IPTV ${serverId}`,url:buildProxiedUrl(url,{'User-Agent':'XC-IPTV'})}];
   }
   if (/^https?:\/\//i.test(cleanRoute)) return [{ kind: /\.m3u8(?:[?#]|$)/i.test(cleanRoute) ? 'hls' : 'video', audio: audioFallback, server: 'Direto', url: buildProxiedUrl(cleanRoute) }];
 
@@ -1753,9 +1857,10 @@ function extractYoutubeTrailerKey(tmdbDetails) {
   return scored[0]?.key || '';
 }
 
-function findSimilarCatalogItems(localItem, kind, genres = [], limit = 12) {
+async function findSimilarCatalogItems(localItem, kind, genres = [], limit = 12) {
   const cat = CATEGORY_NORM[kind] || localItem?.kind || 'filme';
-  const pool = store.catalog[cat] || [];
+  const genreName=typeof genres[0]==='object'?genres[0].name:genres[0];
+  const pool = await catalogDb.ready([cat]) ? (await catalogDb.list({category:cat,genre:genreName || '',limit:limit*3})).results : store.catalog[cat] || [];
   if (!pool.length) return [];
   const currentId = String(localItem?.id || '');
   const targetGenres = new Set(
@@ -1808,7 +1913,7 @@ async function handleMovieDetails(response, movieId) {
   })).filter(c => c.name);
   const genres = tmdbDetails?.genres?.length ? tmdbDetails.genres : (localItem?.genres || []);
   const trailerKey = extractYoutubeTrailerKey(tmdbDetails);
-  const similar = findSimilarCatalogItems(localItem || { id: movieId, kind: 'filme' }, 'filme', genres, 12);
+  const similar = await findSimilarCatalogItems(localItem || { id: movieId, kind: 'filme' }, 'filme', genres, 12);
   return sendJson(response, 200, {
     id: String(localItem?.id || movieId),
     details: {
@@ -1922,7 +2027,7 @@ async function handleSeriesDetails(response, seriesId, requestedSeason, kindHint
 
   const genres = tmdbDetails?.genres?.length ? tmdbDetails.genres : (localItem?.genres || []);
   const trailerKey = extractYoutubeTrailerKey(tmdbDetails);
-  const similar = findSimilarCatalogItems(localItem || { id: seriesId, kind: kindHint }, localItem?.kind || kindHint, genres, 12);
+  const similar = await findSimilarCatalogItems(localItem || { id: seriesId, kind: kindHint }, localItem?.kind || kindHint, genres, 12);
 
   return sendJson(response, 200, {
     id: String(localItem?.id || seriesId),
@@ -1986,7 +2091,7 @@ async function handleResolvePlay(response, requestUrl) {
         }
       }
     }
-    if (!options.length) return sendJson(response, 502, { error: 'Nenhum servidor ativo respondeu para este canal.' });
+    if (!options.length) return sendJson(response, 502, { error: 'Nenhum servidor ativo respondeu para este canal.',diagnostics:[...new Map(serversList.flatMap(server=>providerDiagnostics.get(server.route) || []).map(item=>[item.code,item])).values()] });
     const payload = {
       id: channel.id,
       title: channel.name,
@@ -2087,8 +2192,14 @@ async function handleResolvePlay(response, requestUrl) {
 
 
 const loading = new Map();
-const fresh = new Map();
+const fresh = sharedData.fresh ||= new Map();
 async function ensureCatalog(kind) {
+  if(kind==='canais' && await catalogDb.ready(['canais'])) {
+    const result=await catalogDb.channels();
+    store.channels=result.channels;store.iptvConfig=result.iptvConfig;store.source='cloudflare-d1';
+    for(const channel of store.channels){store.byKindAndId.set(`canais:${channel.id}`,channel);for(const alias of channel.aliases || [])store.byKindAndId.set(`canais:${alias}`,channel);}
+    return;
+  }
   const baseKinds = Object.keys(GIST_SOURCES);
   const kinds = [...(baseKinds.includes(kind) ? [kind] : kind === 'canais' ? [] : baseKinds), ...(kind === 'canais' || kind === 'pesquisa' || kind === 'all' ? ['canais'] : [])];
   for (const k of kinds) {
@@ -2133,9 +2244,73 @@ async function ensureCatalog(kind) {
     }
   }
 }
+async function handleDatabaseCatalog(response,url,category,kind) {
+  const limit=Math.max(1,Math.min(5000,parseInt(url.searchParams.get('limit') || '24',10) || 24));
+  const page=Math.max(1,parseInt(url.searchParams.get('page') || '1',10) || 1);
+  const actor=url.searchParams.get('actor') || '';
+  const platform=url.searchParams.get('platform') || '';
+  const genre=url.searchParams.get('genero') || url.searchParams.get('genre') || '';
+  const kinds=CATALOG_KINDS.includes(category)?[category]:CATALOG_KINDS.includes(kind)?[kind]:CATALOG_KINDS;
+  let ids=null,actorInfo=null,platformSlug='';
+  const intersect=items=>{
+    const next=items.map(item=>`${item.kind}:${item.id}`);
+    const existing=ids && new Set(ids);
+    ids=existing?next.filter(id=>existing.has(id)):next;
+  };
+  if(actor){const result=await getActorCatalogMatches(actor,kinds);intersect(result.matched);actorInfo=result.actorInfo;}
+  if(platform){
+    platformSlug=PLATFORM_NAMES_MAP[platform.toLowerCase()] || (PLATFORM_PROVIDER_IDS[platform]?platform:'');
+    if(!platformSlug) return Response.json({error:'Plataforma inválida.'},{status:400});
+    if(!await catalogDb.platformReady(platformSlug))return Response.json({error:'O catálogo desta plataforma está sendo atualizado. Tente novamente em alguns minutos.'},{status:503});
+  }
+  const cinema=normalizeText(genre)==='cinema';
+  if(cinema && !await catalogDb.platformReady('cinema'))return Response.json({error:'O catálogo de cinema está sendo atualizado. Tente novamente em alguns minutos.'},{status:503});
+  const result=await catalogDb.list({category,kind,query:url.searchParams.get('q') || '',year:url.searchParams.get('year') || '',genre,sort:url.searchParams.get('sort') || 'recent',limit,page,restrictIds:ids,platform:platformSlug,cinema});
+  if(actorInfo)result.actor=actorInfo;
+  sendJson(response,200,url.searchParams.has('page')?result:result.results,{'X-Catalog-Source':'cloudflare-d1'});
+  return response.result;
+}
+async function handleDatabaseMap(response,url) {
+  const limit=Math.max(1,Math.min(2000,parseInt(url.searchParams.get('limit') || '500',10) || 500));
+  const page=Math.max(1,parseInt(url.searchParams.get('page') || '1',10) || 1);
+  const result=await catalogDb.map({kind:url.searchParams.get('kind') || 'all',sort:url.searchParams.get('sort') || 'az',letter:url.searchParams.get('letter') || '',year:url.searchParams.get('year') || '',query:url.searchParams.get('q') || '',page,limit});
+  const results=result.rows.map(item=>({...item,letter:initialBucketOf(item.title),href:`/assistir/${item.kind}/${encodeURIComponent(item.id)}`}));
+  const counts={...Object.fromEntries([...CATALOG_KINDS,'canais'].map(kind=>[kind,0])),...result.counts};
+  counts.all=Object.values(counts).reduce((sum,total)=>sum+total,0);
+  sendJson(response,200,{results,total:result.total,page,limit,hasMore:page*limit<result.total,years:result.years,counts});
+  return response.result;
+}
+async function databaseSitemap(url) {
+  const escape=value=>String(value).replace(/[<>&"']/g,char=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&apos;'}[char]));
+  const result=await catalogDb.map({limit:1});
+  const chunk=500;
+  let body;
+  if(url.pathname==='/sitemap.xml') {
+    const pages=[`${url.origin}/sitemaps/pages.xml`];
+    for(const [kind,total] of Object.entries(result.counts))for(let page=1;page<=Math.ceil(total/chunk);page++)pages.push(`${url.origin}/sitemaps/${kind}/${page}.xml`);
+    body=`<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${pages.map(path=>`<sitemap><loc>${escape(path)}</loc></sitemap>`).join('')}</sitemapindex>`;
+  } else {
+    let paths=[];
+    if(url.pathname==='/sitemaps/pages.xml')paths=SITEMAP_ROUTES;
+    else {
+      const match=url.pathname.match(/^\/sitemaps\/(filme|serie|anime|dorama|desenho|novela|canais)\/([1-9]\d*)\.xml$/);
+      if(!match)return new Response('Mapa não encontrado.',{status:404});
+      const rows=await catalogDb.map({kind:match[1],page:Number(match[2]),limit:chunk});
+      paths=rows.rows.map(item=>`/assistir/${item.kind}/${encodeURIComponent(item.id)}`);
+    }
+    body=`<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${paths.map(path=>`<url><loc>${escape(url.origin+path)}</loc></url>`).join('')}</urlset>`;
+  }
+  return new Response(`<?xml version="1.0" encoding="UTF-8"?>${body}`,{headers:{'Content-Type':'application/xml; charset=utf-8','Cache-Control':'public, max-age=900'}});
+}
+
 async function api(request) {
   const url = new URL(request.url);
+  if(url.pathname==='/api/pluto/channels') {
+    const channels=JSON.parse(await cachedTextFetch('https://api.pluto.tv/v2/channels.json',{},900000));
+    return Response.json(channels.map(channel=>({_id:channel._id,name:channel.name,category:channel.category,colorLogoPNG:channel.colorLogoPNG})));
+  }
   if (url.pathname === '/api/proxy') return media.handle(request);
+  if ((url.pathname==='/sitemap.xml' || url.pathname.startsWith('/sitemaps/')) && await catalogDb.ready()) return databaseSitemap(url);
   if (url.pathname === '/api/search') {
     url.pathname = '/api/lista';
     if (!url.searchParams.has('category')) url.searchParams.set('category','all');
@@ -2165,21 +2340,32 @@ async function api(request) {
   }
   const response = {};
   if (url.pathname === '/api/lista') {
-    await ensureCatalog(CATEGORY_NORM[url.searchParams.get('category')] || 'pesquisa');
+    const category = CATEGORY_NORM[url.searchParams.get('category')] || 'pesquisa';
+    const requestedKind = CATEGORY_NORM[url.searchParams.get('kind')];
+    const kinds=GIST_SOURCES[category]?[category]:GIST_SOURCES[requestedKind]?[requestedKind]:CATALOG_KINDS;
+    if (category!=='canais' && category!=='channel_categories' && await catalogDb.ready(kinds)) {
+      return handleDatabaseCatalog(response,url,category,requestedKind);
+    }
+    await ensureCatalog(category === 'pesquisa' && GIST_SOURCES[requestedKind] ? requestedKind : category);
     await handleCatalog(request, response, url);
   } else if (url.pathname === '/api/mapa') {
+    if (await catalogDb.ready()) return handleDatabaseMap(response,url);
     await ensureCatalog('all');
     handleTextSitemapApi(response, url);
   } else if (url.pathname === '/api/play') {
-    await ensureCatalog(CATEGORY_NORM[url.searchParams.get('kind')] || 'filme');
+    const kind=CATEGORY_NORM[url.searchParams.get('kind')] || 'filme';
+    if (kind==='canais') await ensureCatalog(kind);
+    else await resolveCatalogEntry(kind,url.searchParams.get('id') || '');
     await handleResolvePlay(response, url);
   } else if (url.pathname.startsWith('/api/movie/')) {
-    await ensureCatalog('filme');
-    await handleMovieDetails(response, decodeURIComponent(url.pathname.slice(11)));
+    const id=decodeURIComponent(url.pathname.slice(11));
+    await resolveCatalogEntry('filme',id);
+    await handleMovieDetails(response,id);
   } else if (url.pathname.startsWith('/api/series/')) {
     const kind = CATEGORY_NORM[url.searchParams.get('kind')] || 'serie';
-    await ensureCatalog(kind);
-    await handleSeriesDetails(response, decodeURIComponent(url.pathname.slice(12)), Math.max(1, Number(url.searchParams.get('season')) || 1), kind);
+    const id=decodeURIComponent(url.pathname.slice(12));
+    await resolveCatalogEntry(kind,id);
+    await handleSeriesDetails(response,id,Math.max(1, Number(url.searchParams.get('season')) || 1),kind);
   } else if (url.pathname === '/sitemap.xml') {
     await ensureCatalog('all');
     const escape = s => String(s).replace(/[<>&"']/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&apos;'}[c]));
@@ -2188,5 +2374,5 @@ async function api(request) {
   }
   return response.result || new Response(JSON.stringify({ error:'Rota não encontrada.' }), {status:404,headers:{'Content-Type':'application/json'}});
 }
-return { api, ensureCatalog, parseCatalogXml, parseChannelsXml, store, handleCatalog, fetchBrazucaSeriesProviderData, resolveSingleRoutePlay };
+return { api, ensureCatalog, resolveCatalogEntry, migrateCatalogEntries, parseCatalogXml, parseChannelsXml, store, handleCatalog, fetchBrazucaSeriesProviderData, resolveSingleRoutePlay };
 }

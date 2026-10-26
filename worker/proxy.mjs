@@ -91,6 +91,10 @@ export function createMediaProxy(env, fetcher = fetch) {
       const output = new Headers({ 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
       for (const name of ['content-type', 'content-range', 'accept-ranges', 'content-length']) if (upstream.headers.has(name)) output.set(name, upstream.headers.get(name));
       const type = (upstream.headers.get('content-type') || '').toLowerCase();
+      if(/html|javascript|svg\+xml/.test(type)) {
+        await upstream.body?.cancel();
+        return Response.json({error:'A origem retornou uma página em vez de mídia. Tente outro servidor.'},{status:upstream.status>=400?upstream.status:502,headers:{'Cache-Control':'no-store','X-Deepflix-Origin-Status':String(upstream.status)}});
+      }
       const finalUrl = upstream.url || data.u;
       const pathname = new URL(finalUrl).pathname.toLowerCase();
       if (upstream.headers.has('content-encoding') && upstream.headers.get('content-encoding') !== 'identity') output.delete('content-length');

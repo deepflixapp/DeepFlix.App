@@ -1,0 +1,162 @@
+{
+  "checkedAt": "2026-10-26T01:45:14.666Z",
+  "base": "https://deepflix.deepflix-app.workers.dev",
+  "results": [
+    {
+      "round": 1,
+      "path": "/api/lista?category=pesquisa&q=Matrix&page=1&limit=50",
+      "status": 200,
+      "count": 7,
+      "total": 7,
+      "ok": true,
+      "ms": 2072
+    },
+    {
+      "round": 1,
+      "path": "/api/lista?category=pesquisa&q=Matrix&kind=filme&page=1&limit=50",
+      "status": 200,
+      "count": 6,
+      "total": 6,
+      "ok": true,
+      "ms": 2224
+    },
+    {
+      "round": 1,
+      "path": "/api/lista?category=serie&page=1&limit=50&sort=recent",
+      "status": 200,
+      "count": 50,
+      "total": 8212,
+      "ok": true,
+      "ms": 2247
+    },
+    {
+      "round": 1,
+      "path": "/api/lista?category=filme&page=1&limit=50&sort=recent",
+      "status": 200,
+      "count": 50,
+      "total": 17966,
+      "ok": true,
+      "ms": 2300
+    },
+    {
+      "round": 1,
+      "path": "/api/play?kind=filme&id=603",
+      "status": 200,
+      "count": 9,
+      "ok": true,
+      "ms": 2958
+    },
+    {
+      "round": 1,
+      "path": "/api/series/1973?kind=serie&season=1",
+      "status": 200,
+      "count": 24,
+      "ok": true,
+      "ms": 5292
+    },
+    {
+      "round": 2,
+      "path": "/api/lista?category=pesquisa&q=Matrix&kind=filme&page=1&limit=50",
+      "status": 200,
+      "count": 6,
+      "total": 6,
+      "ok": true,
+      "ms": 367
+    },
+    {
+      "round": 2,
+      "path": "/api/lista?category=pesquisa&q=Matrix&page=1&limit=50",
+      "status": 200,
+      "count": 7,
+      "total": 7,
+      "ok": true,
+      "ms": 599
+    },
+    {
+      "round": 2,
+      "path": "/api/play?kind=filme&id=603",
+      "status": 200,
+      "count": 9,
+      "ok": true,
+      "ms": 601
+    },
+    {
+      "round": 2,
+      "path": "/api/lista?category=filme&page=1&limit=50&sort=recent",
+      "status": 200,
+      "count": 50,
+      "total": 17966,
+      "ok": true,
+      "ms": 617
+    },
+    {
+      "round": 2,
+      "path": "/api/lista?category=serie&page=1&limit=50&sort=recent",
+      "status": 200,
+      "count": 50,
+      "total": 8212,
+      "ok": true,
+      "ms": 627
+    },
+    {
+      "round": 2,
+      "path": "/api/series/1973?kind=serie&season=1",
+      "status": 200,
+      "count": 24,
+      "ok": true,
+      "ms": 765
+    },
+    {
+      "round": 3,
+      "path": "/api/lista?category=serie&page=1&limit=50&sort=recent",
+      "status": 200,
+      "count": 50,
+      "total": 8212,
+      "ok": true,
+      "ms": 361
+    },
+    {
+      "round": 3,
+      "path": "/api/play?kind=filme&id=603",
+      "status": 200,
+      "count": 9,
+      "ok": true,
+      "ms": 612
+    },
+    {
+      "round": 3,
+      "path": "/api/lista?category=pesquisa&q=Matrix&page=1&limit=50",
+      "status": 200,
+      "count": 7,
+      "total": 7,
+      "ok": true,
+      "ms": 620
+    },
+    {
+      "round": 3,
+      "path": "/api/lista?category=pesquisa&q=Matrix&kind=filme&page=1&limit=50",
+      "status": 200,
+      "count": 6,
+      "total": 6,
+      "ok": true,
+      "ms": 621
+    },
+    {
+      "round": 3,
+      "path": "/api/lista?category=filme&page=1&limit=50&sort=recent",
+      "status": 200,
+      "count": 50,
+      "total": 17966,
+      "ok": true,
+      "ms": 656
+    },
+    {
+      "round": 3,
+      "path": "/api/series/1973?kind=serie&season=1",
+      "status": 200,
+      "count": 24,
+      "ok": true,
+      "ms": 778
+    }
+  ]
+}

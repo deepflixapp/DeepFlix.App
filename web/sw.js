@@ -1,5 +1,5 @@
 /* DEEPFLIX PWA Service Worker */
-const CACHE_NAME = 'deepflix-pwa-v10';
+const CACHE_NAME = 'deepflix-pwa-v12';
 const STATIC_ASSETS = [
   '/',
   '/manifest.webmanifest',
