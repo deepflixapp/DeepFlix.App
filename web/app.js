@@ -3061,6 +3061,7 @@ document.addEventListener('click', event => {
     openDetails(item, kind, seasonAttr, epAttr);
   }
 });
+// Capture custom shortcuts before native video controls; focused video keeps native Space.
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape') {
     const gSuggest = $('#global-search-suggest');
@@ -3130,7 +3131,7 @@ document.addEventListener('keydown', event => {
       toggleTheaterMode();
     }
   }
-});
+}, true);
 $('#clear-filters')?.addEventListener('click', () => {
   $('#search-form')?.reset();
   if ($('#actor-filter')) $('#actor-filter').value = '';

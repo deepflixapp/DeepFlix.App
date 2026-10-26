@@ -1,0 +1,160 @@
+{
+  "checkedAt": "2026-10-26T01:49:28.122Z",
+  "base": "https://deepflix-preview.deepflix-app.workers.dev",
+  "results": [
+    {
+      "kind": "filme",
+      "query": "Matrix",
+      "catalogStatus": 200,
+      "matches": 6,
+      "title": "Matrix",
+      "playStatus": 200,
+      "options": 9,
+      "media": [
+        {
+          "status": 206,
+          "type": "video/mp4",
+          "bytes": 620
+        }
+      ]
+    },
+    {
+      "kind": "serie",
+      "query": "24 Horas",
+      "catalogStatus": 200,
+      "matches": 4,
+      "title": "24 Horas",
+      "detailsStatus": 200,
+      "seasons": 9,
+      "episodes": 24,
+      "playStatus": 200,
+      "options": 6,
+      "media": [
+        {
+          "status": 403
+        },
+        {
+          "status": 206,
+          "type": "video/mp4",
+          "bytes": 640
+        }
+      ]
+    },
+    {
+      "kind": "anime",
+      "query": "009-1",
+      "catalogStatus": 200,
+      "matches": 1,
+      "title": "009-1",
+      "detailsStatus": 200,
+      "seasons": 1,
+      "episodes": 13,
+      "playStatus": 200,
+      "options": 2,
+      "media": [
+        {
+          "status": 206,
+          "type": "video/mp4",
+          "bytes": 640
+        }
+      ]
+    },
+    {
+      "kind": "dorama",
+      "query": "1 Litro de Lágrimas",
+      "catalogStatus": 200,
+      "matches": 1,
+      "title": "1 Litro de Lágrimas",
+      "detailsStatus": 200,
+      "seasons": 1,
+      "episodes": 12,
+      "playStatus": 200,
+      "options": 1,
+      "media": [
+        {
+          "status": 206,
+          "type": "video/mp4",
+          "bytes": 638
+        }
+      ]
+    },
+    {
+      "kind": "desenho",
+      "query": "Bob Esponja",
+      "catalogStatus": 200,
+      "matches": 2,
+      "title": "Bob Esponja",
+      "detailsStatus": 200,
+      "seasons": 16,
+      "episodes": 41,
+      "playStatus": 200,
+      "options": 2,
+      "media": [
+        {
+          "status": 403
+        },
+        {
+          "status": 206,
+          "type": "video/mp4",
+          "bytes": 641
+        }
+      ]
+    },
+    {
+      "kind": "novela",
+      "query": "A Bíblia",
+      "catalogStatus": 200,
+      "matches": 1,
+      "title": "A Bíblia",
+      "detailsStatus": 200,
+      "seasons": 1,
+      "episodes": 45,
+      "playStatus": 200,
+      "options": 2,
+      "media": [
+        {
+          "status": 403
+        },
+        {
+          "status": 206,
+          "type": "video/mp4",
+          "bytes": 1369
+        }
+      ]
+    },
+    {
+      "kind": "canais",
+      "query": "Globo",
+      "catalogStatus": 200,
+      "matches": 2,
+      "title": "GLOBO",
+      "playStatus": 502,
+      "options": 0,
+      "error": "Nenhum servidor ativo respondeu para este canal."
+    },
+    {
+      "kind": "canais",
+      "query": "Pluto",
+      "catalogStatus": 200,
+      "matches": 198,
+      "title": "5 Cops",
+      "playStatus": 200,
+      "options": 1,
+      "media": [
+        {
+          "status": 200,
+          "type": "application/vnd.apple.mpegurl; charset=utf-8",
+          "child": {
+            "status": 200,
+            "type": "application/vnd.apple.mpegurl; charset=utf-8",
+            "child": {
+              "status": 206,
+              "type": "video/mp2t",
+              "bytes": 4096
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

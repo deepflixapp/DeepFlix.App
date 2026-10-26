@@ -1330,17 +1330,19 @@ html.tv-mode .movie-card:focus .card-poster { border-color: #d9aaff; box-shadow:
   }
   .episode-toolbar {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 10px;
     padding: 11px;
   }
   .season-picker, .episode-jump {
     justify-content: space-between;
+    min-width: 0;
     width: 100%;
     font-size: 14px;
   }
   .season-picker select, .episode-jump select {
     flex: 1;
+    min-width: 0;
     max-width: 65%;
     height: 38px;
     font-size: 14px;

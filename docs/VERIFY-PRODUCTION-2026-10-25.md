@@ -22,6 +22,16 @@ Versão Cloudflare: `9ebbaf10-6b33-41dc-bad0-ad11b119a6d9`, saúde `20261025-v7`
 - O catálogo D1 tem atualização manual pelos comandos documentados em `CLOUDFLARE.md`; não há cron de atualização automática.
 - Rollback de código para a versão anterior: `8ad2211f-854f-4831-bdc3-d92b74744b05`. Preservar o D1; o schema novo é aditivo.
 
+### Continuação da validação
+
+Correções de teclado e layout publicadas em produção: `e7f9773a-dfbe-48a1-adf6-db0db82b26f2` (health permanece `20261025-v7`; assets app v10, CSS v2, PWA v14).
+
+- Prévia: 009-1 T1:E1 reproduziu (`readyState=4`, 11,87 s), 1 Litro de Lágrimas T1:E1 reproduziu (20,29 s), A Bíblia T1:E1 reproduziu (39,60 s) e Bob Esponja T1:E1 reproduziu (42,41 s). Evidências: `preview-anime-playing.jpg`, `preview-dorama-playing.jpg`, `preview-novela-playing.jpg`, `preview-cartoon-playing.jpg`.
+- O novo relatório `remote-media.json` substitui a tentativa antiga reprovada: mídia respondeu para seis categorias e Pluto, usando exclusivamente APIs/proxy do Worker. Algumas opções retornaram 403, mas houve alternativa; Globo permaneceu 502.
+- Corrigido salto duplicado das setas quando o vídeo tem foco. Com pausa, o teste na prévia mediu 86,922655 para 96,922655 segundos: exatamente +10 s. Espaço continua usando o controle nativo do vídeo.
+- Emulação móvel passou a aplicar largura real de 375 px quando a aba de teste está visível. Catálogo, filtro de ano 1999 e menu funcionaram sem transbordamento. Player móvel reproduziu 24 Horas T1:E2 e abriu a lista completa. Corrigido transbordamento pelos seletores: antes 442 px, depois `clientWidth=scrollWidth=375`, vídeo ativo em 20,87 s. Evidências: `preview-mobile-films.jpg`, `preview-mobile-watch.jpg`.
+- O comando de tela cheia não ativou `document.fullscreenElement` no navegador incorporado. Esse item continua sem aprovação; áudio foi desmutado por comando, sem comprovação auditiva de todas as faixas.
+
 ## Rodada inicial (versão anterior, diagnóstico histórico)
 
 Endereço: https://deepflix.deepflix-app.workers.dev/
